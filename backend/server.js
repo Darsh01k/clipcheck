@@ -13,7 +13,7 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
 const ytdl = require('@distube/ytdl-core');
-const { fetchTranscriptDirect } = require('./transcript_fetcher');
+const { fetchTranscriptAll } = require('./transcript_fetcher');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -150,19 +150,19 @@ function safeParseJSON(text) {
 
 // ─── YouTube Transcript Extraction (with timeout + fallback) ───
 async function getYoutubeTranscript(videoId, lang = 'en') {
-    // Try direct API approach first
+    // Try direct API approaches first (InnerTube API + ytdl-core fallback)
     try {
         const result = await withTimeout(
-            fetchTranscriptDirect(videoId, lang),
-            15000,
-            'YouTube transcript direct'
+            fetchTranscriptAll(videoId, lang),
+            20000,
+            'YouTube transcript fetch'
         );
         if (result) {
-            console.log(`  Transcript via direct API: ${result.segments.length} segments (${result.fullText.length} chars)`);
+            console.log(`  Transcript obtained: ${result.segments.length} segments (${result.fullText.length} chars)`);
             return result;
         }
     } catch (e) {
-        console.log(`  Direct API failed: ${e.message?.substring(0, 60)}`);
+        console.log(`  Direct transcript fetch failed: ${e.message?.substring(0, 60)}`);
     }
 
     // Fallback to youtube-transcript package
