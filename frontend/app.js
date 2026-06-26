@@ -1853,7 +1853,27 @@ async function loadReport(reportId) {
 
 // ─── Error ───
 function showError(message) {
-    document.getElementById('error-message').textContent = message || 'An unexpected error occurred.';
+    const titleEl = document.getElementById('error-title');
+    const detailEl = document.getElementById('error-message');
+    if (message) {
+        const msg = message.trim();
+        const isTranscriptError = /transcript|captions|subtitles/i.test(msg);
+        const isNetworkError = /network|fetch|timeout|connect/i.test(msg);
+        const isApiError = /api key|rate.limit|quota|model/i.test(msg);
+        if (isTranscriptError) {
+            titleEl.textContent = 'Could not get video transcript';
+        } else if (isNetworkError) {
+            titleEl.textContent = 'Network error';
+        } else if (isApiError) {
+            titleEl.textContent = 'AI service error';
+        } else {
+            titleEl.textContent = 'Something went wrong';
+        }
+        detailEl.textContent = msg;
+    } else {
+        titleEl.textContent = 'Something went wrong';
+        detailEl.textContent = 'An unexpected error occurred.';
+    }
     navigateTo('error');
 }
 
