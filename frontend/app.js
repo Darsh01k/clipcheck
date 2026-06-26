@@ -266,7 +266,6 @@ async function pollReport(reportId) {
             }
 
             // Update progress elements
-            updateProgressFromReport(report);
             updateProgressBarFromReport(report);
             updateProcessingStepsFromReport(report);
             if (report.progress) updateProgress(report.progress);
