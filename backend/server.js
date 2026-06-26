@@ -28,7 +28,7 @@ const AI_PROVIDERS = [
         baseUrl: 'https://openrouter.ai/api/v1',
         apiKey: OPENROUTER_API_KEY,
         models: [
-            process.env.AI_MODEL,
+            ...(process.env.AI_MODEL?.split(',').map(s => s.trim()).filter(Boolean) || []),
             'openrouter/free',
             'meta-llama/llama-3.3-70b-instruct:free',
             'google/gemma-4-31b-it:free',
