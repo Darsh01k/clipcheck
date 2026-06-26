@@ -1753,29 +1753,28 @@ function buildPdfHtml(report) {
     const circumference = 326.73;
     const offset = circumference - (truthRatio / 100) * circumference;
 
-    let ratingText, ratingClass;
-    if (truthRatio >= 80) { ratingText = `✅ Trustworthy — ${truthRatio}% of claims verified true`; ratingClass = 'trustworthy'; }
-    else if (truthRatio >= 50) { ratingText = `⚠️ Mixed — ${truthRatio}% of claims verified true. Stay critical.`; ratingClass = 'mixed'; }
-    else if (truthRatio > 0) { ratingText = `❌ Untrustworthy — Only ${truthRatio}% of claims verified true`; ratingClass = 'untrustworthy'; }
-    else { ratingText = '❓ Unverifiable — No claims could be verified'; ratingClass = 'unverifiable'; }
+    const verdictColor = (v) => v === 'TRUE' ? '#10b981' : v === 'FALSE' ? '#ef4444' : v === 'MISLEADING' ? '#f59e0b' : '#6b7280';
+    const verdictIcon = (v) => v === 'TRUE' ? '✓' : v === 'FALSE' ? '✗' : v === 'MISLEADING' ? '⚠' : '?';
+    const verdictBg = (v) => v === 'TRUE' ? '#d1fae5' : v === 'FALSE' ? '#fee2e2' : v === 'MISLEADING' ? '#fef3c7' : '#f3f4f6';
+
+    let ratingText, ratingClass, ratingColor;
+    if (truthRatio >= 80) { ratingText = `Trustworthy — ${truthRatio}% of claims verified true`; ratingClass = 'trustworthy'; ratingColor = '#10b981'; }
+    else if (truthRatio >= 50) { ratingText = `Mixed — ${truthRatio}% of claims verified true`; ratingClass = 'mixed'; ratingColor = '#f59e0b'; }
+    else if (truthRatio > 0) { ratingText = `Untrustworthy — Only ${truthRatio}% of claims verified true`; ratingClass = 'untrustworthy'; ratingColor = '#ef4444'; }
+    else { ratingText = 'Unverifiable — No claims could be verified'; ratingClass = 'unverifiable'; ratingColor = '#6b7280'; }
 
     const platformLabel = { youtube: 'YouTube', twitter: 'Twitter', tiktok: 'TikTok', facebook: 'Facebook', vimeo: 'Vimeo', instagram: 'Instagram', text: 'Text' };
     const pf = platformLabel[report.platform] || report.platform || 'Source';
-    const title = report.title ? `${pf} — ${report.title.replace(/^Fact-Check:\s*/, '').replace(/["']/g, '').substring(0, 60)}` : `${pf} Fact-Check Report`;
+    const reportTitle = report.title ? `${pf} — ${report.title.replace(/^Fact-Check:\s*/, '').replace(/["']/g, '').substring(0, 60)}` : `${pf} Fact-Check Report`;
 
     let infoCardHtml = '';
     if (report.video_id && report.platform === 'youtube' && report.thumbnail_url) {
         infoCardHtml = `
-            <div class="video-info-card">
+            <div class="i-card">
                 <img src="${escapeHtml(report.thumbnail_url)}" alt="" />
-                <div class="video-info-text">
-                    <h3>${escapeHtml(report.title || 'YouTube Video')}</h3>
-                    <div class="video-meta">
-                        ${report.author ? `<span>${escapeHtml(report.author)}</span>` : ''}
-                        ${report.duration ? `<span>${formatDuration(report.duration)}</span>` : ''}
-                        ${report.author || report.duration ? '·' : ''}
-                        <span>YouTube</span>
-                    </div>
+                <div class="i-card-text">
+                    <div class="i-card-title">${escapeHtml(report.title || 'YouTube Video')}</div>
+                    <div class="i-card-meta">${report.author ? escapeHtml(report.author) + ' · ' : ''}${report.duration ? formatDuration(report.duration) + ' · ' : ''}YouTube</div>
                 </div>
             </div>`;
     }
@@ -1785,164 +1784,161 @@ function buildPdfHtml(report) {
     if (plat === 'text') {
         const textContent = report.transcript || report.title?.replace('Fact-Check: "', '').replace('"', '') || '';
         sourceCardHtml = `
-            <div class="source-card">
-                <div class="source-card-label">Text Fact-Check</div>
-                <div class="source-text-content">${escapeHtml(textContent)}</div>
+            <div class="s-card">
+                <div class="s-label">Text Fact-Check</div>
+                <div class="s-body">${escapeHtml(textContent)}</div>
             </div>`;
     } else if (plat === 'twitter') {
         const tweetText = report.transcript || '';
         sourceCardHtml = `
-            <div class="source-card">
-                <div class="source-card-label">Tweet Fact-Check</div>
-                ${report.author ? `<div class="source-tweet-author">${escapeHtml(report.author)}</div>` : ''}
-                <div class="source-text-content">${escapeHtml(tweetText)}</div>
+            <div class="s-card">
+                <div class="s-label">Tweet Fact-Check</div>
+                ${report.author ? `<div class="s-author">${escapeHtml(report.author)}</div>` : ''}
+                <div class="s-body">${escapeHtml(tweetText)}</div>
             </div>`;
     }
 
     let claimsHtml = '';
     claims.forEach(claim => {
-        const verdict = (claim.verdict || 'UNVERIFIABLE').toLowerCase();
-        const badgeLabel = verdict.toUpperCase();
+        const verdict = (claim.verdict || 'UNVERIFIABLE').toUpperCase();
+        const vLower = verdict.toLowerCase();
+        const color = verdictColor(verdict);
+        const icon = verdictIcon(verdict);
+        const bg = verdictBg(verdict);
         const confidence = (claim.confidence || 'low').toLowerCase();
         const claimText = claim.claim || claim.text || '';
-        const confidenceWidth = confidence === 'high' ? '95%' : confidence === 'medium' ? '65%' : '35%';
-        const confidenceColor = confidence === 'high' ? '#22d65e' : confidence === 'medium' ? '#f5a80b' : '#ef4455';
+        const confidenceWidth = confidence === 'high' ? '80%' : confidence === 'medium' ? '50%' : '25%';
+        const confidenceColor = confidence === 'high' ? '#10b981' : confidence === 'medium' ? '#f59e0b' : '#ef4444';
 
         const sourcesHtml = (claim.sources && claim.sources.length > 0)
             ? claim.sources.map(s =>
-                `<li><a href="${escapeHtml(s.url)}">${escapeHtml(s.title || s.url)}</a>${s.relevance ? `<div style="font-size:0.8rem;color:#70707e;margin-top:2px">${escapeHtml(s.relevance)}</div>` : ''}</li>`
+                `<div class="src-item"><a href="${escapeHtml(s.url)}">${escapeHtml(s.title || s.url)}</a>${s.relevance ? `<div class="src-rel">${escapeHtml(s.relevance)}</div>` : ''}</div>`
             ).join('')
-            : '<li style="color:#70707e">No sources available</li>';
+            : '<div style="color:#9ca3af;font-size:0.85rem">No sources available</div>';
 
         const timeStr = claim.time_start != null
-            ? `<span style="font-size:0.8rem;color:#3b82f6">⏱ ${formatTime(claim.time_start)} — ${formatTime(claim.time_end)}</span>`
+            ? `<span style="font-size:0.8rem;color:#6366f1">⏱ ${formatTime(claim.time_start)} — ${formatTime(claim.time_end)}</span>`
             : '';
 
         claimsHtml += `
-            <div class="claim-card">
-                <div class="claim-header">
-                    <span class="claim-badge ${verdict}">${badgeLabel}</span>
-                    <span class="claim-text">${escapeHtml(claimText)}</span>
+            <div class="c-card" style="border-left:5px solid ${color}">
+                <div class="c-hdr">
+                    <span class="c-bdg" style="background:${bg};color:${color}">${icon} ${verdict}</span>
+                    <span class="c-txt">${escapeHtml(claimText)}</span>
                 </div>
-                <div class="claim-body">
-                    <div class="claim-meta-bar">
-                        <span style="font-size:0.8rem;color:#70707e">${escapeHtml(claim.category || 'General')}</span>
+                <div class="c-body">
+                    <div class="c-bar">
+                        <span style="font-size:0.8rem;color:#6b7280">${escapeHtml(claim.category || 'General')}</span>
                         ${timeStr}
                     </div>
-                    <div class="confidence-meter">
-                        <span class="confidence-label ${confidence}">${confidence.charAt(0).toUpperCase() + confidence.slice(1)}</span>
-                        <div class="confidence-bar-bg">
-                            <div class="confidence-bar-fill" style="width:${confidenceWidth};background:${confidenceColor}"></div>
-                        </div>
+                    <div class="c-conf">
+                        <span class="c-conf-lbl ${confidence}" style="color:${confidenceColor}">${confidence.charAt(0).toUpperCase() + confidence.slice(1)}</span>
+                        <div class="c-conf-bg"><div class="c-conf-fill" style="width:${confidenceWidth};background:${confidenceColor}"></div></div>
                     </div>
                     ${claim.key_evidence ? `
-                    <div class="claim-detail">
-                        <div class="claim-detail-label">Key Evidence</div>
-                        <div style="font-size:0.9rem;line-height:1.6;color:#a0a0b0">${escapeHtml(claim.key_evidence)}</div>
+                    <div class="c-sec">
+                        <div class="c-sec-lbl">Key Evidence</div>
+                        <div class="c-sec-body">${escapeHtml(claim.key_evidence)}</div>
                     </div>` : ''}
-                    <div class="claim-detail">
-                        <div class="claim-detail-label">Explanation</div>
-                        <div style="font-size:0.9rem;line-height:1.6;color:#a0a0b0">${escapeHtml(claim.explanation || 'No explanation available')}</div>
+                    <div class="c-sec">
+                        <div class="c-sec-lbl">Explanation</div>
+                        <div class="c-sec-body">${escapeHtml(claim.explanation || 'No explanation available')}</div>
                     </div>
-                    <div class="claim-detail">
-                        <div class="claim-detail-label">Sources (${claim.sources?.length || 0})</div>
-                        <ul style="list-style:none;padding:0">${sourcesHtml}</ul>
+                    <div class="c-sec">
+                        <div class="c-sec-lbl">Sources (${claim.sources?.length || 0})</div>
+                        ${sourcesHtml}
                     </div>
                 </div>
             </div>`;
     });
 
     const noClaimsHtml = total === 0
-        ? '<div style="background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:40px 24px;text-align:center"><p style="color:#70707e">No factual claims were identified in this video.</p></div>'
+        ? '<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:40px 24px;text-align:center;color:#6b7280">No factual claims were identified.</div>'
         : '';
+
+    const summaryText = (report.summary || 'No summary available.').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
     return {
         styles: `
-.pdf-page { padding:30px;max-width:800px;margin:0 auto;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0b0b0e;color:#f0f0f4;line-height:1.5; }
-.report-header { margin-bottom:20px; }
-.report-label { font-size:0.75rem;text-transform:uppercase;letter-spacing:0.1em;color:#22d65e;font-weight:600; }
-.report-meta { font-size:0.8rem;color:#70707e;margin-top:4px; }
-.video-info-card { display:flex;gap:16px;align-items:center;background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:14px;margin-bottom:20px; }
-.video-info-card img { width:160px;height:90px;object-fit:cover;border-radius:10px;flex-shrink:0; }
-.video-info-text { flex:1;min-width:0; }
-.video-info-text h3 { font-size:0.95rem;font-weight:600;margin-bottom:4px; }
-.video-meta { font-size:0.8rem;color:#70707e; }
-.source-card { background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:16px;margin-bottom:20px; }
-.source-card-label { font-size:0.75rem;font-weight:600;color:#70707e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px; }
-.source-text-content { font-size:0.9rem;line-height:1.6;color:#f0f0f4;background:#1e1e24;border-radius:10px;padding:14px;white-space:pre-wrap;word-break:break-word; }
-.source-tweet-author { font-size:0.85rem;font-weight:600;color:#a0a0b0;margin-bottom:6px; }
-.report-summary { background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:20px 24px;font-size:1rem;line-height:1.7;margin-bottom:20px; }
-.score-card { background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:24px;margin-bottom:24px;text-align:center; }
-.score-inner { display:flex;align-items:center;gap:28px;justify-content:center;flex-wrap:wrap; }
-.score-ring-wrap { position:relative;width:120px;height:120px;flex-shrink:0; }
-.score-ring-wrap svg { width:100%;height:100%;transform:rotate(-90deg); }
-.score-ring-text { position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center; }
-.score-value { font-size:1.8rem;font-weight:800;color:#f0f0f4;line-height:1; }
-.score-label { font-size:0.65rem;color:#70707e;text-transform:uppercase;letter-spacing:0.1em;font-weight:600; }
-.score-details { display:flex;flex-direction:column;gap:6px;text-align:left; }
-.score-row { display:flex;align-items:center;gap:8px;font-size:0.85rem;color:#a0a0b0; }
-.score-row strong { color:#f0f0f4;font-weight:700; }
-.score-dot { width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0; }
-.score-rating { margin-top:16px;padding:8px 20px;border-radius:100px;font-size:0.9rem;font-weight:700;display:inline-block; }
-.score-rating.trustworthy { background:rgba(34,214,94,0.15);color:#22d65e; }
-.score-rating.mixed { background:rgba(245,168,11,0.15);color:#f5a80b; }
-.score-rating.untrustworthy { background:rgba(239,68,85,0.15);color:#ef4455; }
-.score-rating.unverifiable { background:rgba(113,113,122,0.15);color:#70707e; }
-.claim-card { background:#141418;border:1px solid #2c2c35;border-radius:14px;overflow:hidden;margin-bottom:14px; }
-.claim-header { display:flex;align-items:flex-start;gap:14px;padding:20px 24px; }
-.claim-badge { padding:4px 14px;border-radius:100px;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;flex-shrink:0;margin-top:2px; }
-.claim-badge.true { background:rgba(34,214,94,0.15);color:#22d65e; }
-.claim-badge.false { background:rgba(239,68,85,0.15);color:#ef4455; }
-.claim-badge.misleading { background:rgba(245,168,11,0.15);color:#f5a80b; }
-.claim-badge.unverifiable { background:rgba(113,113,122,0.15);color:#70707e; }
-.claim-text { flex:1;font-size:0.95rem;line-height:1.6; }
-.claim-body { padding:0 24px 20px;border-top:1px solid #2c2c35; }
-.claim-meta-bar { display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap; }
-.claim-detail { margin-top:16px; }
-.claim-detail-label { font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:#70707e;font-weight:600;margin-bottom:6px; }
-.confidence-meter { display:flex;align-items:center;gap:8px;margin:10px 0; }
-.confidence-bar-bg { width:100px;height:6px;background:#2c2c35;border-radius:100px;overflow:hidden; }
-.confidence-bar-fill { height:100%;border-radius:100px; }
-.confidence-label { font-size:0.7rem;font-weight:600;text-transform:uppercase; }
-.confidence-label.high { color:#22d65e; }
-.confidence-label.medium { color:#f5a80b; }
-.confidence-label.low { color:#ef4455; }
-.claim-source { font-size:0.85rem;margin-bottom:6px; }
-.claim-source a { color:#22d65e;text-decoration:underline; }
-.pdf-footer { text-align:center;font-size:0.75rem;color:#70707e;margin-top:32px;padding-top:16px;border-top:1px solid #2c2c35; }
+body { margin:0;padding:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#ffffff;color:#1f2937;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact; }
+.pg { padding:40px 36px;max-width:800px;margin:0 auto; }
+.hdr { margin-bottom:24px; }
+.hdr-lbl { font-size:0.7rem;text-transform:uppercase;letter-spacing:0.12em;color:#10b981;font-weight:700; }
+.hdr-meta { font-size:0.8rem;color:#6b7280;margin-top:4px; }
+.hdr-title { font-size:1.3rem;font-weight:700;color:#111827;margin-top:2px; }
+.i-card { display:flex;gap:14px;align-items:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-bottom:20px; }
+.i-card img { width:140px;height:79px;object-fit:cover;border-radius:8px;flex-shrink:0; }
+.i-card-text { flex:1;min-width:0; }
+.i-card-title { font-size:0.95rem;font-weight:600;margin-bottom:2px;color:#111827; }
+.i-card-meta { font-size:0.78rem;color:#6b7280; }
+.s-card { background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:14px;margin-bottom:20px; }
+.s-label { font-size:0.7rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px; }
+.s-body { font-size:0.88rem;line-height:1.6;color:#374151;background:#ffffff;border-radius:8px;padding:12px;white-space:pre-wrap;word-break:break-word;border:1px solid #f3f4f6; }
+.s-author { font-size:0.85rem;font-weight:600;color:#374151;margin-bottom:4px; }
+.summary { background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:18px 22px;font-size:0.95rem;line-height:1.7;color:#1f2937;margin-bottom:24px; }
+.sc { background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;margin-bottom:24px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+.sc-in { display:flex;align-items:center;gap:28px;justify-content:center;flex-wrap:wrap; }
+.sc-ring { position:relative;width:110px;height:110px;flex-shrink:0; }
+.sc-ring svg { width:100%;height:100%;transform:rotate(-90deg); }
+.sc-ring-txt { position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center; }
+.sc-val { font-size:1.7rem;font-weight:800;color:#111827;line-height:1; }
+.sc-lbl { font-size:0.6rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;font-weight:600; }
+.sc-det { display:flex;flex-direction:column;gap:5px;text-align:left; }
+.sc-row { display:flex;align-items:center;gap:8px;font-size:0.85rem;color:#6b7280; }
+.sc-row strong { color:#111827;font-weight:700; }
+.sc-dot { width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0; }
+.sc-rate { margin-top:14px;padding:8px 20px;border-radius:100px;font-size:0.85rem;font-weight:700;display:inline-block; }
+.c-card { background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+.c-hdr { display:flex;align-items:flex-start;gap:12px;padding:16px 20px; }
+.c-bdg { padding:3px 12px;border-radius:100px;font-size:0.75rem;font-weight:700;white-space:nowrap;flex-shrink:0;margin-top:1px; }
+.c-txt { flex:1;font-size:0.93rem;line-height:1.6;color:#1f2937; }
+.c-body { padding:0 20px 16px;border-top:1px solid #f3f4f6; }
+.c-bar { display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap; }
+.c-sec { margin-top:12px; }
+.c-sec-lbl { font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;font-weight:600;margin-bottom:4px; }
+.c-sec-body { font-size:0.88rem;line-height:1.7;color:#4b5563; }
+.c-conf { display:flex;align-items:center;gap:8px;margin:8px 0; }
+.c-conf-bg { width:90px;height:5px;background:#e5e7eb;border-radius:100px;overflow:hidden; }
+.c-conf-fill { height:100%;border-radius:100px; }
+.c-conf-lbl { font-size:0.65rem;font-weight:600;text-transform:uppercase;letter-spacing:0.03em; }
+.src-item { font-size:0.83rem;margin-bottom:6px;padding:6px 10px;background:#f9fafb;border-radius:6px; }
+.src-item a { color:#10b981;text-decoration:underline;font-weight:500; }
+.src-rel { font-size:0.75rem;color:#6b7280;margin-top:1px; }
+.ftr { text-align:center;font-size:0.7rem;color:#9ca3af;margin-top:32px;padding-top:14px;border-top:1px solid #e5e7eb; }
         `,
         content: `
-        <div class="pdf-page">
-            <div class="report-header">
-                <div class="report-label">${title}</div>
-                <div class="report-meta">${new Date(report.completed_at || report.created_at).toLocaleString()} · ${pf}</div>
+        <div class="pg">
+            <div class="hdr">
+                <div class="hdr-lbl">ClipCheck Report</div>
+                <div class="hdr-title">${escapeHtml(reportTitle)}</div>
+                <div class="hdr-meta">${new Date(report.completed_at || report.created_at).toLocaleString()} · ${pf}</div>
             </div>
             ${infoCardHtml}
             ${sourceCardHtml}
-            <div class="report-summary"><strong>Summary:</strong> ${(report.summary || 'No summary available.').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}</div>
-            <div class="score-card">
-                <div class="score-inner">
-                    <div class="score-ring-wrap">
+            <div class="summary"><strong>Summary:</strong> ${summaryText}</div>
+            <div class="sc">
+                <div class="sc-in">
+                    <div class="sc-ring">
                         <svg viewBox="0 0 120 120">
-                            <circle cx="60" cy="60" r="52" fill="none" stroke="#2c2c35" stroke-width="8"/>
-                            <circle cx="60" cy="60" r="52" fill="none" stroke="#22d65e" stroke-width="8" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"/>
+                            <circle cx="60" cy="60" r="52" fill="none" stroke="#e5e7eb" stroke-width="8"/>
+                            <circle cx="60" cy="60" r="52" fill="none" stroke="${ratingColor}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"/>
                         </svg>
-                        <div class="score-ring-text">
-                            <div class="score-value">${truthRatio}%</div>
-                            <div class="score-label">Truth</div>
+                        <div class="sc-ring-txt">
+                            <div class="sc-val">${truthRatio}%</div>
+                            <div class="sc-lbl">Truth</div>
                         </div>
                     </div>
-                    <div class="score-details">
-                        <div class="score-row"><span class="score-dot" style="background:#22d65e"></span> True: <strong>${trueC}</strong></div>
-                        <div class="score-row"><span class="score-dot" style="background:#ef4455"></span> False: <strong>${falseC}</strong></div>
-                        <div class="score-row"><span class="score-dot" style="background:#f5a80b"></span> Misleading: <strong>${misleadingC}</strong></div>
-                        <div class="score-row"><span class="score-dot" style="background:#70707e"></span> Unverifiable: <strong>${unverifiableC}</strong></div>
+                    <div class="sc-det">
+                        <div class="sc-row"><span class="sc-dot" style="background:#10b981"></span> True: <strong>${trueC}</strong></div>
+                        <div class="sc-row"><span class="sc-dot" style="background:#ef4444"></span> False: <strong>${falseC}</strong></div>
+                        <div class="sc-row"><span class="sc-dot" style="background:#f59e0b"></span> Misleading: <strong>${misleadingC}</strong></div>
+                        <div class="sc-row"><span class="sc-dot" style="background:#6b7280"></span> Unverifiable: <strong>${unverifiableC}</strong></div>
                     </div>
                 </div>
-                <div class="score-rating ${ratingClass}">${ratingText}</div>
+                <div class="sc-rate" style="background:${ratingColor}15;color:${ratingColor}">${ratingText}</div>
             </div>
             ${noClaimsHtml || claimsHtml}
-            <div class="pdf-footer">Generated by ClipCheck · AI-generated results</div>
+            <div class="ftr">Generated by ClipCheck · AI-powered fact-checking results</div>
         </div>`
     };
 }
