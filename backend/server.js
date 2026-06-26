@@ -13,6 +13,7 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
 const ytdl = require('@distube/ytdl-core');
+const { fetchTranscriptDirect } = require('./transcript_fetcher');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -147,8 +148,25 @@ function safeParseJSON(text) {
     return null;
 }
 
-// ─── YouTube Transcript Extraction (with timeout) ───
+// ─── YouTube Transcript Extraction (with timeout + fallback) ───
 async function getYoutubeTranscript(videoId, lang = 'en') {
+    // Try direct API approach first
+    try {
+        const result = await withTimeout(
+            fetchTranscriptDirect(videoId, lang),
+            15000,
+            'YouTube transcript direct'
+        );
+        if (result) {
+            console.log(`  Transcript via direct API: ${result.segments.length} segments (${result.fullText.length} chars)`);
+            return result;
+        }
+    } catch (e) {
+        console.log(`  Direct API failed: ${e.message?.substring(0, 60)}`);
+    }
+
+    // Fallback to youtube-transcript package
+    console.log('  Falling back to youtube-transcript package...');
     const { YoutubeTranscript } = require('youtube-transcript');
     const triedLangs = [];
     for (const tryLang of [lang, undefined]) {
@@ -167,7 +185,7 @@ async function getYoutubeTranscript(videoId, lang = 'en') {
                     offset: s.offset || s.start || 0,
                     duration: s.duration || 5,
                 }));
-                console.log(`  Transcript obtained (lang: ${tryLang || 'auto'}, ${segments.length} segments)`);
+                console.log(`  Transcript via youtube-transcript (lang: ${tryLang || 'auto'}, ${segments.length} segments)`);
                 return { fullText, segments: normalised };
             }
         } catch (e) {
