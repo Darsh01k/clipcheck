@@ -108,6 +108,15 @@ function toggleTimeRange() {
     a.classList.toggle('open', !open);
 }
 
+// ─── Manual Transcript Toggle ───
+function toggleManualTranscript() {
+    const c = document.getElementById('manual-transcript-section');
+    const a = document.querySelector('.manual-transcript-arrow');
+    const open = c.style.display !== 'none';
+    c.style.display = open ? 'none' : 'block';
+    a.classList.toggle('open', !open);
+}
+
 // ─── Navigation ───
 function navigateTo(page) {
     const path = page === 'home' ? '/' : `/${page}`;
@@ -159,7 +168,9 @@ async function submitFactCheck() {
 
     try {
         const lang = document.getElementById('language-select').value;
+        const manualTranscript = document.getElementById('manual-transcript').value.trim();
         const body = { url, session_id: getSessionId(), language: lang, with_video: _currentMode === 'video' };
+        if (manualTranscript) body.manualTranscript = manualTranscript;
         const st = parseFloat(document.getElementById('start-time').value);
         const et = parseFloat(document.getElementById('end-time').value);
         if (st > 0) body.start_time = st;
@@ -241,7 +252,7 @@ async function pollReport(reportId) {
                 renderResults(report);
                 return;
             }
-            if (report.status === 'failed') { showError(report.error || 'Fact-check failed.'); return; }
+            if (report.status === 'failed') { showError(report.error || 'Fact-check failed.', report); return; }
 
             // Track if progress is stuck
             const currentProgress = report.progress || '';
@@ -1852,9 +1863,18 @@ async function loadReport(reportId) {
 }
 
 // ─── Error ───
-function showError(message) {
+function showError(message, report) {
     const titleEl = document.getElementById('error-title');
     const detailEl = document.getElementById('error-message');
+
+    // Check for TRANSCRIPT_UNAVAILABLE error code
+    if (report && report.errorCode === 'TRANSCRIPT_UNAVAILABLE') {
+        titleEl.textContent = 'Transcript not available';
+        detailEl.innerHTML = message + (report.suggestion ? '<br><br>' + report.suggestion : '');
+        navigateTo('error');
+        return;
+    }
+
     if (message) {
         const msg = message.trim();
         const isTranscriptError = /transcript|captions|subtitles/i.test(msg);

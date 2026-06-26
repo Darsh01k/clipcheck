@@ -111,6 +111,15 @@
                             <p class="time-hint">Leave blank to fact-check the entire content</p>
                         </div>
 
+                        <!-- Manual Transcript -->
+                        <div class="manual-transcript-toggle" onclick="toggleManualTranscript()">
+                            <span class="manual-transcript-label">📝 Optional: paste video transcript manually</span>
+                            <span class="manual-transcript-arrow">▼</span>
+                        </div>
+                        <div id="manual-transcript-section" class="manual-transcript-section" style="display:none;">
+                            <textarea id="manual-transcript" class="manual-transcript-input" placeholder="If the video's captions could not be fetched automatically, paste the transcript here...&#10;&#10;Tip: You can open the video on YouTube, click 'More actions' (⋯) → 'Show transcript', then copy the text." rows="5"></textarea>
+                        </div>
+
                         <p class="input-hint">Paste any URL and AI will analyze the claims. YouTube videos include a synced player!</p>
 
                         <!-- Example URLs -->

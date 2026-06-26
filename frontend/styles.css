@@ -251,6 +251,26 @@ body {
 .time-input:focus { border-color: var(--primary); }
 .time-hint { width: 100%; text-align: center; color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; }
 
+/* ─── Manual Transcript ─── */
+.manual-transcript-toggle {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; margin-top: 16px;
+    color: var(--text-muted); font-size: 0.85rem; cursor: pointer; user-select: none; transition: color 0.2s;
+}
+.manual-transcript-toggle:hover { color: var(--text-secondary); }
+.manual-transcript-arrow { transition: transform 0.2s; font-size: 0.7rem; }
+.manual-transcript-arrow.open { transform: rotate(180deg); }
+.manual-transcript-section { margin-top: 12px; }
+.manual-transcript-input {
+    width: 100%; box-sizing: border-box;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 14px; color: var(--text); font-size: 0.9rem; font-family: inherit;
+    outline: none; transition: border-color 0.2s; resize: vertical; min-height: 100px;
+    line-height: 1.5;
+}
+.manual-transcript-input:focus { border-color: var(--primary); }
+.manual-transcript-input::placeholder { color: var(--text-muted); }
+
 /* ─── Progress Bar ─── */
 .progress-bar-container {
     display: flex; align-items: center; gap: 12px;

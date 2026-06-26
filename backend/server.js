@@ -158,25 +158,37 @@ async function getYoutubeTranscript(videoId, lang = 'en') {
             'YouTube transcript fetch'
         );
         if (result) {
-            console.log(`  Transcript obtained: ${result.segments.length} segments (${result.fullText.length} chars)`);
+            console.log(`  ✅ Transcript via direct API: ${result.segments.length} segments (${result.fullText.length} chars)`);
             return result;
         }
+        console.log('  ⚠️ Direct API methods returned null — falling back...');
     } catch (e) {
-        console.log(`  Direct transcript fetch failed: ${e.message?.substring(0, 60)}`);
+        const msg = e.message || '';
+        if (msg.includes('captcha') || msg.includes('too many requests') || msg.includes('429')) {
+            console.log(`  ⛔ YouTube blocked direct API: ${msg.substring(0, 80)}`);
+        } else {
+            console.log(`  ❌ Direct transcript fetch failed: ${msg.substring(0, 80)}`);
+        }
     }
 
-    // Fallback to youtube-transcript package
-    console.log('  Falling back to youtube-transcript package...');
+    // Fallback: try multiple languages with youtube-transcript package
+    console.log('  🔄 Falling back to youtube-transcript package...');
     const { YoutubeTranscript } = require('youtube-transcript');
-    const triedLangs = [];
-    for (const tryLang of [lang, undefined]) {
-        triedLangs.push(tryLang || 'auto');
+    const fallbackLangs = [lang, undefined, 'en-US', 'en-GB', 'hi'];
+    const triedLangs = new Set();
+
+    for (const tryLang of fallbackLangs) {
+        const label = tryLang || 'auto';
+        if (triedLangs.has(label)) continue;
+        triedLangs.add(label);
+
         try {
             const opts = tryLang ? { lang: tryLang } : undefined;
+            console.log(`  Trying youtube-transcript lang=${label}...`);
             const segments = await withTimeout(
                 YoutubeTranscript.fetchTranscript(videoId, opts),
                 12000,
-                'YouTube transcript fetch'
+                `YouTube transcript ${label}`
             );
             if (segments && segments.length > 0) {
                 const fullText = segments.map(s => s.text || '').join(' ').replace(/\s+/g, ' ').trim();
@@ -185,19 +197,21 @@ async function getYoutubeTranscript(videoId, lang = 'en') {
                     offset: s.offset || s.start || 0,
                     duration: s.duration || 5,
                 }));
-                console.log(`  Transcript via youtube-transcript (lang: ${tryLang || 'auto'}, ${segments.length} segments)`);
+                console.log(`  ✅ Transcript via youtube-transcript (lang: ${label}, ${segments.length} segments)`);
                 return { fullText, segments: normalised };
             }
         } catch (e) {
-            const isLastAttempt = tryLang === undefined;
-            if (!isLastAttempt) {
-                console.log(`  Language '${tryLang}' not available, trying auto-detect...`);
-                continue;
+            const isCaptcha = (e.message || '').toLowerCase().includes('captcha');
+            const isTooMany = (e.message || '').toLowerCase().includes('too many requests');
+            if (isCaptcha || isTooMany) {
+                console.log(`  ⛔ YouTube blocked (${label}): ${e.message?.substring(0, 80)}`);
+                // Don't retry further — YouTube is blocking this IP
+                break;
             }
-            console.error(`YouTube transcript error: ${e.message}`);
-            return null;
+            console.log(`  ❌ Lang ${label} failed: ${e.message?.substring(0, 80)}`);
         }
     }
+    console.log('  ❌ All transcript methods exhausted');
     return null;
 }
 
@@ -639,7 +653,16 @@ async function getTranscript(videoUrl, startTime = 0, endTime = null, lang = 'en
                 15000,
                 'YouTube transcript fetch'
             );
-            if (!result) return { success: false, error: 'Could not extract captions from this YouTube video.', platform };
+            if (!result) {
+                console.log('  ❌ All transcript methods exhausted for this video');
+                return {
+                    success: false,
+                    errorCode: 'TRANSCRIPT_UNAVAILABLE',
+                    error: 'Could not extract captions from this video. YouTube may be blocking automated caption access or the video may not have captions.',
+                    suggestion: 'Please paste the video transcript manually or try another video.',
+                    platform
+                };
+            }
 
             let { fullText, segments } = result;
 
@@ -966,11 +989,15 @@ app.get('/api/health', (req, res) => {
 
 app.post('/api/fact-check', async (req, res) => {
     try {
-        const { url, session_id, start_time, end_time, language, with_video } = req.body;
+        const { url, session_id, start_time, end_time, language, with_video, manualTranscript } = req.body;
         if (!url || !url.trim()) return res.status(400).json({ detail: 'URL is required' });
         const trimmedUrl = url.trim();
         if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
             return res.status(400).json({ detail: 'Invalid URL format' });
+        }
+        const manualTr = manualTranscript ? manualTranscript.trim() : '';
+        if (manualTr && manualTr.length < 50) {
+            return res.status(400).json({ detail: 'Manual transcript must be at least 50 characters.' });
         }
         const startTime = Math.max(0, parseFloat(start_time) || 0);
         const endTime = parseFloat(end_time) > startTime ? parseFloat(end_time) : null;
@@ -989,6 +1016,7 @@ app.post('/api/fact-check', async (req, res) => {
             session_id: session_id || 'anonymous',
             language: language || 'en',
             with_video: with_video !== false,
+            manual_transcript: manualTr || null,
             thumbnail_url: null,
             duration: 0,
             author: '',
@@ -1006,7 +1034,7 @@ app.post('/api/fact-check', async (req, res) => {
         saveDb(db);
 
         const reportLang = language || 'en';
-        processReport(reportId, trimmedUrl, startTime, endTime, reportLang).catch(err => {
+        processReport(reportId, trimmedUrl, startTime, endTime, reportLang, manualTr).catch(err => {
             console.error(`Background error for ${reportId}:`, err);
             const db2 = loadDb();
             if (db2.reports[reportId]) {
@@ -1050,7 +1078,7 @@ app.get('/api/reports', (req, res) => {
 });
 
 // ─── Background Processing ───
-async function processReport(reportId, videoUrl, startTime = 0, endTime = null, language = 'en') {
+async function processReport(reportId, videoUrl, startTime = 0, endTime = null, language = 'en', manualTranscript = '') {
     console.log(`\n🔍 Processing report ${reportId}: ${videoUrl} (lang: ${language})`);
 
     try {
@@ -1076,8 +1104,26 @@ async function processReport(reportId, videoUrl, startTime = 0, endTime = null, 
         db = loadDb();
         if (db.reports[reportId]) { db.reports[reportId].progress = 'Fetching transcript...'; saveDb(db); }
 
-        console.log('  📝 Step 1: Getting transcript...');
-        const transcriptResult = await getTranscript(videoUrl, startTime, endTime, language);
+        let transcriptResult;
+
+        if (manualTranscript) {
+            console.log('  📝 Step 1: Using manual transcript...');
+            const segments = [{ text: manualTranscript, offset: 0, duration: 0 }];
+            transcriptResult = {
+                success: true,
+                transcript: manualTranscript,
+                segments,
+                video_id: null,
+                platform: 'manual',
+                title: 'Manual Transcript',
+                author: '',
+                segmentCount: 1,
+                usedSegmentCount: 1,
+            };
+        } else {
+            console.log('  📝 Step 1: Getting transcript...');
+            transcriptResult = await getTranscript(videoUrl, startTime, endTime, language);
+        }
 
         db = loadDb();
         if (!db.reports[reportId]) return;
@@ -1086,6 +1132,8 @@ async function processReport(reportId, videoUrl, startTime = 0, endTime = null, 
         if (!transcriptResult.success) {
             report.status = 'failed';
             report.error = transcriptResult.error || 'Failed to get transcript';
+            report.errorCode = transcriptResult.errorCode || null;
+            report.suggestion = transcriptResult.suggestion || null;
             report.completed_at = new Date().toISOString();
             saveDb(db);
             console.log(`  ❌ Failed: ${report.error}`);
