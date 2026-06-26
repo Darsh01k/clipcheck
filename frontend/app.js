@@ -4,7 +4,7 @@
      pause & fact-check, history thumbnails
    ────────────────────────────────────────────── */
 
-const API_BASE = '';
+const API_BASE = 'https://clipcheck.onrender.com';
 
 // ─── Fun Facts ───
 const FUN_FACTS = [
