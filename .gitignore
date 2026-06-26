@@ -1,0 +1,6 @@
+node_modules/
+.env
+backend/clipcheck.json
+backend/server.log
+backend/server-error.log
+backend/*-player-script.js

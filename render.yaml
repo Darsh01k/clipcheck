@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: clipcheck
+    env: docker
+    dockerfilePath: Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: meta-llama/llama-3.3-70b-instruct:free

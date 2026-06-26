@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClipCheck — AI Fact Checker</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✓</text></svg>">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="/" class="nav-logo">
+                <svg class="logo-svg" viewBox="0 0 36 36" fill="none">
+                    <rect x="2" y="2" width="32" height="32" rx="10" fill="#22d65e"/>
+                    <path d="M11 18.5L15.5 23L25 13" stroke="#000" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="18" cy="18" r="4" fill="#141418" opacity="0.15"/>
+                </svg>
+                <span class="logo-text">ClipCheck</span>
+            </a>
+            <div class="nav-links">
+                <a href="/" class="nav-link active" data-page="home">Home</a>
+                <a href="/history" class="nav-link" data-page="history">History</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Particle Background Canvas -->
+    <canvas id="particle-bg"></canvas>
+
+    <!-- Main Content -->
+    <main id="app">
+
+        <!-- ════ HOME PAGE ════ -->
+        <section id="page-home" class="page active">
+            <div class="container">
+                <div class="hero">
+                    <h1 class="hero-title">Fact-check anything</h1>
+                    <p class="hero-subtitle" id="hero-subtitle">
+                        Paste a video, tweet, or any URL and get an AI-powered fact-check report with sourced verdicts.
+                        Watch with real-time claim sync or just get a quick report.
+                    </p>
+
+                    <!-- Input Mode Tabs -->
+                    <div class="input-mode-tabs">
+                        <button class="input-mode-tab active" data-mode="url" onclick="switchInputMode('url')">🔗 Any URL</button>
+                        <button class="input-mode-tab" data-mode="text" onclick="switchInputMode('text')">✏️ Type Text</button>
+                    </div>
+
+                    <!-- URL Input (default) -->
+                    <div id="input-group-url" class="input-group">
+                        <div class="input-wrapper">
+                            <input type="url" id="video-url-input" class="url-input"
+                                placeholder="Paste any URL (YouTube, TikTok, Twitter, Instagram, Facebook...)"
+                                autocomplete="url" spellcheck="false">
+                            <button id="check-btn" class="btn btn-primary" onclick="submitFactCheck()">
+                                <span class="btn-text">Check Facts</span>
+                                <span class="btn-icon">→</span>
+                            </button>
+                        </div>
+
+                        <!-- Language & Mode Row -->
+                        <div class="options-row">
+                            <div class="option-group">
+                                <label class="option-label" for="language-select">🌐 Video Language</label>
+                                <select id="language-select" class="option-select">
+                                    <option value="en">English</option>
+                                    <option value="es">Spanish</option>
+                                    <option value="fr">French</option>
+                                    <option value="de">German</option>
+                                    <option value="it">Italian</option>
+                                    <option value="pt">Portuguese</option>
+                                    <option value="ru">Russian</option>
+                                    <option value="ja">Japanese</option>
+                                    <option value="ko">Korean</option>
+                                    <option value="zh">Chinese</option>
+                                    <option value="ar">Arabic</option>
+                                    <option value="hi">Hindi</option>
+                                    <option value="tr">Turkish</option>
+                                    <option value="nl">Dutch</option>
+                                    <option value="pl">Polish</option>
+                                    <option value="auto">Auto-detect</option>
+                                </select>
+                            </div>
+                            <div class="option-group">
+                                <label class="option-label">📺 Mode</label>
+                                <div class="toggle-group">
+                                    <button id="mode-report" class="toggle-btn active" onclick="setMode('report')">Quick Report</button>
+                                    <button id="mode-video" class="toggle-btn" onclick="setMode('video')">Watch + Sync</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Time Range -->
+                        <div class="time-range-toggle" onclick="toggleTimeRange()">
+                            <span class="time-range-label">📅 Optional: fact-check a specific part of the video</span>
+                            <span class="time-range-arrow">▼</span>
+                        </div>
+                        <div id="time-range-inputs" class="time-range-inputs" style="display:none;">
+                            <div class="time-input-group">
+                                <label class="time-label">From (seconds)</label>
+                                <input type="number" id="start-time" class="time-input" placeholder="0" min="0" value="0">
+                            </div>
+                            <div class="time-input-group">
+                                <label class="time-label">To (seconds)</label>
+                                <input type="number" id="end-time" class="time-input" placeholder="e.g. 300" min="0">
+                            </div>
+                            <p class="time-hint">Leave blank to fact-check the entire content</p>
+                        </div>
+
+                        <p class="input-hint">Paste any URL and AI will analyze the claims. YouTube videos include a synced player!</p>
+
+                        <!-- Example URLs -->
+                        <div class="examples">
+                            <p class="examples-label">Try an example:</p>
+                            <div class="example-chips">
+                                <button class="chip" onclick="fillExample('https://www.youtube.com/watch?v=dQw4w9WgXcQ')">YouTube</button>
+                                <button class="chip" onclick="fillExample('https://www.tiktok.com/@example/video/123456789')">TikTok</button>
+                                <button class="chip" onclick="fillExample('https://twitter.com/user/status/123456789')">Twitter/X</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Text Input -->
+                    <div id="input-group-text" class="input-group" style="display:none;">
+                        <div class="input-wrapper text-input-wrapper">
+                            <textarea id="text-input" class="text-input" placeholder="Paste or type a claim, sentence, or paragraph you want to fact-check...&#10;&#10;Example: &#34;Humans only use 10% of their brains&#34; or paste a news excerpt." rows="5"></textarea>
+                            <button class="btn btn-primary" onclick="submitTextFactCheck()">
+                                <span class="btn-text">Check Facts</span>
+                                <span class="btn-icon">→</span>
+                            </button>
+                        </div>
+                        <p class="input-hint">Type any claim, statement, or paragraph and AI will extract and verify the factual claims in it.</p>
+                    </div>
+                </div>
+
+                <!-- Stats Bar -->
+                <div class="stats-bar" id="stats-bar" style="display:none;">
+                    <div class="stat-item"><span class="stat-icon">🧠</span><span class="stat-value" id="stat-points">0</span><span class="stat-label">Points</span></div>
+                    <div class="stat-item"><span class="stat-icon">📺</span><span class="stat-value" id="stat-videos">0</span><span class="stat-label">Videos</span></div>
+                    <div class="stat-item"><span class="stat-icon">🔍</span><span class="stat-value" id="stat-claims">0</span><span class="stat-label">Claims</span></div>
+                    <div class="stat-item"><span class="stat-icon">🔥</span><span class="stat-value" id="stat-streak">0</span><span class="stat-label">Streak</span></div>
+                </div>
+
+                <!-- How it works -->
+                <div class="how-it-works">
+                    <h2 class="section-title">How it works</h2>
+                    <div class="steps">
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <h3>Submit URL</h3>
+                            <p>Paste any link — YouTube, TikTok, Twitter, or just type a claim</p>
+                        </div>
+                        <div class="step-arrow">→</div>
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <h3>AI Analysis</h3>
+                            <p>We transcribe, extract claims, and search the web for evidence</p>
+                        </div>
+                        <div class="step-arrow">→</div>
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <h3>Get Results</h3>
+                            <p>See claims with True/False/Misleading badges, cited sources, and watch with real-time sync</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="recent-section" id="recent-section" style="display:none;">
+                    <h2 class="section-title" style="margin-top:50px;">Recent Fact-Checks</h2>
+                    <div class="recent-list" id="recent-list"></div>
+                </div>
+
+                <!-- Animated Activity Feed -->
+                <div class="activity-feed" id="activity-feed">
+                    <div class="activity-feed-header">
+                        <span class="activity-feed-dot"></span>
+                        <h2 class="section-title" style="margin-bottom:0;">Live Activity</h2>
+                    </div>
+                    <div class="activity-list" id="activity-list"></div>
+                </div>
+
+                <!-- Trending Claims Carousel -->
+                <div class="trending-section" id="trending-section">
+                    <h2 class="section-title">🔥 Trending Fact-Checks</h2>
+                    <div class="trending-carousel" id="trending-carousel"></div>
+                </div>
+
+                <!-- Gamification Hub -->
+                <div class="gamification-hub" id="gamification-hub">
+                    <h2 class="section-title">🏆 Your Progress</h2>
+                    <div class="gamification-grid" id="gamification-grid"></div>
+                    <div class="xp-bar-container" id="xp-bar-container">
+                        <div class="xp-bar">
+                            <div class="xp-bar-fill" id="xp-bar-fill" style="width:0%"></div>
+                        </div>
+                        <span class="xp-text" id="xp-text">Level 1</span>
+                    </div>
+                    <div class="badge-showcase" id="badge-showcase"></div>
+                </div>
+
+                <!-- Why Fact-Check? -->
+                <div class="why-section">
+                    <h2 class="section-title">Why Fact-Check?</h2>
+                    <div class="why-grid">
+                        <div class="why-card">
+                            <div class="why-icon">📰</div>
+                            <h3>Misinformation spreads fast</h3>
+                            <p>False news spreads 6x faster than the truth on social media. Every fact-check slows it down.</p>
+                        </div>
+                        <div class="why-card">
+                            <div class="why-icon">🧠</div>
+                            <h3>Train your media literacy</h3>
+                            <p>The more you fact-check, the better you get at spotting misleading claims yourself.</p>
+                        </div>
+                        <div class="why-card">
+                            <div class="why-icon">🌍</div>
+                            <h3>You make a difference</h3>
+                            <p>Only 4% of fact-checks are ever shared. By checking and sharing, you help inform others.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ════ PROCESSING PAGE ════ -->
+        <section id="page-processing" class="page">
+            <div class="container">
+                <div class="processing-state">
+                    <div class="spinner"></div>
+                    <h2 class="processing-title" id="processing-title">📺 Fetching video info...</h2>
+
+                    <!-- Progress Bar -->
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+                        <span class="progress-percent" id="progress-percent">0%</span>
+                    </div>
+
+                    <div class="processing-steps">
+                        <div class="proc-step" id="proc-step1">
+                            <span class="proc-dot"></span>
+                            <span>Fetching video info</span>
+                        </div>
+                        <div class="proc-step" id="proc-step2">
+                            <span class="proc-dot"></span>
+                            <span>Transcribing audio</span>
+                        </div>
+                        <div class="proc-step" id="proc-step3">
+                            <span class="proc-dot"></span>
+                            <span>Extracting claims</span>
+                        </div>
+                        <div class="proc-step" id="proc-step4">
+                            <span class="proc-dot"></span>
+                            <span>Verifying facts</span>
+                        </div>
+                        <div class="proc-step" id="proc-step5">
+                            <span class="proc-dot"></span>
+                            <span>Generating report</span>
+                        </div>
+                    </div>
+                    <div id="progress-message" class="progress-message">Starting analysis...</div>
+
+                    <!-- Pulsing AI Thinking Indicator -->
+                    <div class="ai-thinking" id="ai-thinking" style="display:none;">
+                        <span>AI is thinking</span>
+                        <div class="ai-thinking-dots">
+                            <span class="ai-thinking-dot"></span>
+                            <span class="ai-thinking-dot"></span>
+                            <span class="ai-thinking-dot"></span>
+                        </div>
+                    </div>
+
+                    <!-- Real-time claim counter -->
+                    <div id="claim-counter" class="claim-counter" style="display:none;">
+                        <div class="claim-counter-label">CLAIMS FOUND</div>
+                        <div class="claim-counter-value" id="claim-counter-value">0</div>
+                        <div class="claim-counter-status" id="claim-counter-status">identified</div>
+                    </div>
+
+                    <!-- Fun Facts Rotator -->
+                    <div class="fun-facts" id="fun-facts">
+                        <span class="fun-facts-icon">💡</span>
+                        <span class="fun-facts-text" id="fun-fact-text">Did you know? The first fact-checking organization was founded in 1923!</span>
+                    </div>
+
+                    <!-- Mini-Game: Guess the Verdict -->
+                    <div class="mini-game" id="mini-game" style="display:none;">
+                        <!-- Normal Quiz Section -->
+                        <div id="quiz-section">
+                            <div class="game-header">
+                                <span>🎯 Guess the Verdict</span>
+                                <div class="game-controls">
+                                    <span id="quiz-progress">Question 1 of 8</span>
+                                    <span id="quiz-score">Score: 0</span>
+                                    <button class="game-close" onclick="closeMiniGame()">✕</button>
+                                </div>
+                            </div>
+                            <div class="game-body quiz-body">
+                                <!-- Answer History Sidebar -->
+                                <div class="quiz-history" id="quiz-history">
+                                    <div class="quiz-history-title">Past Answers</div>
+                                    <div class="quiz-history-list" id="quiz-history-list"></div>
+                                    <div class="quiz-history-empty" id="quiz-history-empty">No answers yet</div>
+                                </div>
+                                <!-- Current Question -->
+                                <div class="quiz-current" id="quiz-current">
+                                    <div class="game-claim" id="quiz-claim">"Lightning never strikes the same place twice."</div>
+                                    <div class="game-buttons" id="quiz-buttons">
+                                        <button class="game-btn true-btn" onclick="answerQuiz('true')">✅ True</button>
+                                        <button class="game-btn false-btn" onclick="answerQuiz('false')">❌ False</button>
+                                    </div>
+                                    <div class="quiz-feedback" id="quiz-feedback" style="display:none;">
+                                        <div class="quiz-feedback-text" id="quiz-feedback-text">Correct!</div>
+                                        <div class="quiz-explanation" id="quiz-explanation">Explanation here</div>
+                                    </div>
+                                    <div class="game-actions">
+                                        <button class="btn btn-secondary btn-sm" id="quiz-next" style="display:none;" onclick="nextQuizQuestion()">Next →</button>
+                                        <button class="btn btn-secondary btn-sm" id="quiz-restart" style="display:none;" onclick="restartQuiz()">🔄 Play Again</button>
+                                        <button class="btn btn-primary btn-sm" id="speed-round-btn" style="display:none;" onclick="startSpeedRound()">⚡ Speed Round</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Speed Round Section -->
+                        <div id="sr-section" style="display:none;">
+                            <div class="game-header">
+                                <span>⚡ Speed Round</span>
+                                <div class="game-controls">
+                                    <span id="sr-timer">⏱ 20s</span>
+                                    <span id="sr-progress">Question 1</span>
+                                    <span id="sr-score">Score: 0</span>
+                                    <button class="game-close" onclick="closeSpeedRound()">✕</button>
+                                </div>
+                            </div>
+                            <div class="game-body">
+                                <div class="game-claim" id="sr-claim">"Vikings wore horned helmets."</div>
+                                <div class="game-buttons" id="sr-buttons">
+                                    <button class="game-btn true-btn" onclick="answerSpeedRound('true')">✅ True</button>
+                                    <button class="game-btn false-btn" onclick="answerSpeedRound('false')">❌ False</button>
+                                </div>
+                                <div class="quiz-feedback" id="sr-feedback" style="display:none;">
+                                    <div class="quiz-feedback-text">Correct!</div>
+                                    <div class="quiz-explanation" id="sr-explanation">Explanation</div>
+                                </div>
+                                <div class="game-actions" id="sr-result" style="display:none;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Swipe Game: Cap or Fact? -->
+                    <div class="swipe-game" id="swipe-game" style="display:none;">
+                        <div class="swipe-game-card" id="swipe-game-card">
+                            <div class="swipe-game-header">
+                                <span>👆 Cap or Fact?</span>
+                                <div class="swipe-game-controls">
+                                    <span id="swipe-progress">1 / 10</span>
+                                    <span id="swipe-score">✅ 0</span>
+                                    <button class="game-close" onclick="closeSwipeGame()">✕</button>
+                                </div>
+                            </div>
+                            <div class="swipe-overlay-label false-label" id="swipe-label-false">CAP ❌</div>
+                            <div class="swipe-overlay-label true-label" id="swipe-label-true">FACT ✅</div>
+                            <div class="swipe-game-body-wrapper">
+                                <div class="swipe-game-body" id="swipe-game-body">
+                                    <div class="swipe-game-claim" id="swipe-claim">"Loading claim..."</div>
+                                    <div class="swipe-game-hint">👆 Swipe right if FACT, left if CAP</div>
+                                </div>
+                                <div class="swipe-history" id="swipe-history">
+                                    <div class="swipe-history-header" id="swipe-history-header">
+                                        <span class="swipe-history-title">Answered</span>
+                                        <span class="swipe-history-count" id="swipe-history-count">0</span>
+                                    </div>
+                                    <div class="swipe-history-list" id="swipe-history-list"></div>
+                                    <div class="swipe-history-empty" id="swipe-history-empty">No answers yet</div>
+                                </div>
+                            </div>
+                            <div class="swipe-feedback" id="swipe-feedback" style="display:none;"></div>
+                            <div class="swipe-game-actions">
+                                <button class="swipe-btn swipe-btn-false" onclick="swipeChoice('false')" title="Cap (False)">
+                                    ✕
+                                </button>
+                                <button class="swipe-btn" onclick="closeSwipeGame()" title="Skip">
+                                    ⏭
+                                </button>
+                                <button class="swipe-btn swipe-btn-true" onclick="swipeChoice('true')" title="Fact (True)">
+                                    ✓
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="processing-separator"></div>
+
+                    <p class="processing-note" id="processing-note">
+                        ⚡ AI is analyzing claims · Searching the web for evidence · This usually takes 1-3 minutes
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ════ RESULTS PAGE (with Video Sync) ════ -->
+        <section id="page-results" class="page">
+            <div class="container results-container">
+                <!-- Header -->
+                <div class="results-header">
+                    <div class="results-meta">
+                        <span class="results-label" id="results-title">Fact-Check Report</span>
+                        <div class="results-actions-bar">
+                            <button class="btn-icon-sm" onclick="exportTxt()" title="Download .txt report">📄 Export</button>
+                            <button class="btn-icon-sm" onclick="copyShareLink()" title="Copy shareable link">🔗 Share</button>
+                            <span id="report-url" style="display:none;"></span>
+                        </div>
+                    </div>
+
+                    <!-- Video Info Card -->
+                    <div id="video-info-card" class="video-info-card" style="display:none;"></div>
+
+                    <!-- Source Content Card (text, tweet, etc.) -->
+                    <div id="source-card" class="source-card" style="display:none;"></div>
+
+                    <div class="report-summary" id="report-summary"></div>
+                </div>
+
+                <!-- Video + Sync Sidebar Layout -->
+                <div class="video-sync-layout" id="video-sync-layout" style="display:none;">
+                    <div class="video-panel" id="video-panel">
+                        <div id="youtube-player"></div>
+                        <!-- Scanning Overlay -->
+                        <div class="scanning-overlay" id="scanning-overlay">
+                            <div class="scanning-line"></div>
+                            <div class="scanning-ring"></div>
+                            <div class="scanning-text">🔍 Scanning for claims...</div>
+                            <div class="scanning-sub">Analyzing this moment</div>
+                        </div>
+                        <!-- Live Analysis Panel -->
+                        <div class="live-analysis" id="live-analysis">
+                            <div class="live-analysis-header">
+                                <span>⚡ Live Fact-Check</span>
+                                <div class="live-analysis-dots">
+                                    <span class="live-analysis-dot"></span>
+                                    <span class="live-analysis-dot"></span>
+                                    <span class="live-analysis-dot"></span>
+                                </div>
+                            </div>
+                            <div class="live-analysis-claim" id="live-analysis-claim">"Analyzing claim..."</div>
+                            <div class="live-analysis-result" id="live-analysis-result">
+                                <span class="live-analysis-badge" id="live-analysis-badge">CHECKING</span>
+                                <span id="live-analysis-text">Verifying against sources...</span>
+                            </div>
+                        </div>
+                        <button id="pause-factcheck-btn" class="pause-factcheck-btn" onclick="factCheckPausedMoment()">
+                            ⚡ Fact-Check This Moment
+                        </button>
+                        <div class="video-controls-hint">▶ Playing — claims appear in sidebar. Pause to fact-check a specific moment.</div>
+                    </div>
+                    <div class="sync-sidebar" id="sync-sidebar">
+                        <div class="sidebar-header">Live Claims</div>
+                        <div class="sidebar-claims" id="sidebar-claims"></div>
+                        <div class="sidebar-empty" id="sidebar-empty">Claims will appear here as the video plays</div>
+                    </div>
+                </div>
+
+                <!-- Claim Timeline -->
+                <div class="claim-timeline" id="claim-timeline" style="display:none;">
+                    <div class="timeline-track" id="timeline-track"></div>
+                </div>
+
+                    <!-- Truth Score Card -->
+                    <div class="score-card" id="score-card" style="display:none;">
+                        <div class="score-card-inner">
+                            <div class="score-ring-container">
+                                <svg class="score-ring" viewBox="0 0 120 120">
+                                    <circle class="score-ring-bg" cx="60" cy="60" r="52"/>
+                                    <circle class="score-ring-fill" id="score-ring-fill" cx="60" cy="60" r="52"
+                                        stroke-dasharray="326.73" stroke-dashoffset="0"/>
+                                </svg>
+                                <div class="score-ring-text">
+                                    <span class="score-value" id="score-value">0%</span>
+                                    <span class="score-label">Truth</span>
+                                </div>
+                            </div>
+                            <div class="score-details" id="score-details">
+                                <div class="score-row true"><span class="score-dot"></span> True: <strong id="score-true">0</strong></div>
+                                <div class="score-row false"><span class="score-dot"></span> False: <strong id="score-false">0</strong></div>
+                                <div class="score-row misleading"><span class="score-dot"></span> Misleading: <strong id="score-misleading">0</strong></div>
+                                <div class="score-row unverifiable"><span class="score-dot"></span> Unverifiable: <strong id="score-unverifiable">0</strong></div>
+                            </div>
+                        </div>
+                        <div class="score-rating" id="score-rating">Trustworthy ✓</div>
+                    </div>
+
+                    <!-- Filter Bar -->
+                <div class="filter-bar" id="filter-bar" style="display:none;">
+                    <button class="filter-btn active" data-filter="all" onclick="filterClaims('all')">All</button>
+                    <button class="filter-btn" data-filter="true" onclick="filterClaims('true')">✅ True</button>
+                    <button class="filter-btn" data-filter="false" onclick="filterClaims('false')">❌ False</button>
+                    <button class="filter-btn" data-filter="misleading" onclick="filterClaims('misleading')">⚠️ Misleading</button>
+                    <button class="filter-btn" data-filter="unverifiable" onclick="filterClaims('unverifiable')">❓ Unverifiable</button>
+                </div>
+
+                <!-- Claims List -->
+                <div class="claims-list" id="claims-list"></div>
+
+                <!-- Bottom Actions -->
+                <div class="results-actions">
+                    <button class="btn btn-secondary" onclick="navigateTo('home')">Check another video</button>
+                    <button class="btn btn-outline" onclick="exportTxt()">📄 Download Report</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ════ HISTORY PAGE ════ -->
+        <section id="page-history" class="page">
+            <div class="container">
+                <div class="history-header">
+                    <h2 class="section-title">Your Fact-Check History</h2>
+                    <p class="history-subtitle">All your previous fact-checks saved in this browser</p>
+                </div>
+
+                <!-- Compare Button (visible when 2+ items selected) -->
+                <div class="compare-bar" id="compare-bar" style="display:none;">
+                    <span id="compare-count">0 selected</span>
+                    <button class="btn btn-primary btn-sm" onclick="compareReports()">Compare Selected</button>
+                    <button class="btn btn-outline btn-sm" onclick="clearCompare()">Clear</button>
+                </div>
+
+                <div id="history-list" class="history-list">
+                    <div class="history-empty">
+                        <p>No fact-checks yet. Try one!</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ════ COMPARE PAGE ════ -->
+        <section id="page-compare" class="page">
+            <div class="container">
+                <div class="results-header">
+                    <div class="results-meta">
+                        <span class="results-label">Report Comparison</span>
+                        <button class="btn-icon-sm" onclick="navigateTo('history')">← Back</button>
+                    </div>
+                </div>
+                <div class="compare-layout" id="compare-layout">
+                    <div class="compare-col" id="compare-col-1"></div>
+                    <div class="compare-divider"></div>
+                    <div class="compare-col" id="compare-col-2"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ════ ERROR PAGE ════ -->
+        <section id="page-error" class="page">
+            <div class="container">
+                <div class="error-state">
+                    <div class="error-icon">⚠️</div>
+                    <h2 class="error-title">Something went wrong</h2>
+                    <p class="error-message" id="error-message">An error occurred while processing your request.</p>
+                    <button class="btn btn-primary" onclick="navigateTo('home')">Try again</button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>ClipCheck — AI-powered video fact-checking. Results are AI-generated and should not be considered definitive.</p>
+        </div>
+    </footer>
+
+    <!-- Completion Overlay -->
+    <div id="completion-overlay" class="completion-overlay" style="display:none;">
+        <div class="completion-modal">
+            <div class="completion-icon">✅</div>
+            <div class="completion-title">Report Ready!</div>
+            <div class="completion-claim-count" id="completion-claim-count">0 claims analyzed</div>
+            <div class="completion-score-ring">
+                <svg viewBox="0 0 80 80" width="80" height="80">
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="var(--border)" stroke-width="6"/>
+                    <circle id="completion-ring" cx="40" cy="40" r="34" fill="none" stroke="var(--primary)" stroke-width="6"
+                        stroke-dasharray="213.63" stroke-dashoffset="213.63" stroke-linecap="round" transform="rotate(-90 40 40)"/>
+                </svg>
+                <div class="completion-ring-text">
+                    <span id="completion-pct">0%</span>
+                    <span>Truth</span>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="closeCompletionOverlay()" style="margin-top:20px;">
+                View Results →
+            </button>
+            <p class="completion-hint">Auto-redirecting in 2s...</p>
+        </div>
+    </div>
+
+    <!-- Confetti Canvas -->
+    <canvas id="confetti-canvas"></canvas>
+
+    <script src="/static/app.js"></script>
+    <!-- YouTube IFrame API (loaded after app.js) -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+</body>
+</html>

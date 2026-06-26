@@ -1,0 +1,21 @@
+{
+  "name": "clipcheck-backend",
+  "version": "1.0.0",
+  "description": "ClipCheck video fact-checker backend API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@distube/ytdl-core": "^4.16.12",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "openai": "^4.67.0",
+    "uuid": "^10.0.0",
+    "youtube-captions-scraper": "^2.0.3",
+    "youtube-transcript": "^1.3.1",
+    "youtubei.js": "^17.1.0"
+  }
+}
