@@ -4,8 +4,7 @@ RUN apk add --no-cache \
     python3 \
     py3-pip \
     ffmpeg \
-    && pip3 install --no-cache-dir yt-dlp \
-    && rm -rf /root/.cache/pip
+    yt-dlp
 
 WORKDIR /app
 
