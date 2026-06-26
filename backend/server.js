@@ -65,7 +65,15 @@ const AI_PROVIDERS = [
 ].filter(p => p.apiKey);
 
 // ─── Middleware ───
-app.use(cors({ origin: (process.env.ALLOWED_ORIGINS || '*').split(',') }));
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '*')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+app.use(cors({
+    origin: allowedOrigins.includes('*') ? '*' : allowedOrigins,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json({ limit: '50mb' }));
 
 // ─── JSON Database ───
@@ -1342,6 +1350,11 @@ async function processReport(reportId, videoUrl, startTime = 0, endTime = null, 
         }
     }
 }
+
+// ─── Health Check ───
+app.get('/api/health', (req, res) => {
+    res.json({ ok: true, status: 'running', providers: AI_PROVIDERS.map(p => p.name) });
+});
 
 // ─── Start ───
 app.listen(PORT, '0.0.0.0', () => {

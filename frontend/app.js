@@ -179,10 +179,14 @@ async function submitFactCheck() {
         const response = await fetch(`${API_BASE}/api/fact-check`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
         });
-        if (!response.ok) throw new Error((await response.json()).detail || 'Failed');
+        if (!response.ok) {
+            let detail = 'Request failed';
+            try { const errBody = await response.json(); detail = errBody.detail || detail; } catch (_) { detail = response.statusText || detail; }
+            throw new Error(detail);
+        }
         const data = await response.json();
         await pollReport(data.report_id);
-    } catch (err) { console.error(err); showError(err.message); }
+    } catch (err) { console.error('Submit error:', err); showError(err.message); }
 }
 
 // ─── Submit Text Fact Check ───
@@ -206,10 +210,14 @@ async function submitTextFactCheck() {
                 language: document.getElementById('language-select').value || 'en'
             })
         });
-        if (!response.ok) throw new Error((await response.json()).detail || 'Failed');
+        if (!response.ok) {
+            let detail = 'Request failed';
+            try { const errBody = await response.json(); detail = errBody.detail || detail; } catch (_) { detail = response.statusText || detail; }
+            throw new Error(detail);
+        }
         const data = await response.json();
         await pollReport(data.report_id);
-    } catch (err) { console.error(err); showError(err.message); }
+    } catch (err) { console.error('Text submit error:', err); showError(err.message); }
 }
 
 // ─── Polling ───
@@ -290,7 +298,7 @@ async function pollReport(reportId) {
                 hideAIThinking();
             }
 
-        } catch (err) { console.error('Poll error:', err); }
+        } catch (err) { console.error('Poll error:', err.message || err); }
         await new Promise(r => setTimeout(r, 1200));
     }
     showError('This video is taking longer than expected. Check back on the History page.');
