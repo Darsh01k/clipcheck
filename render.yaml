@@ -16,3 +16,5 @@ services:
         value: meta-llama/llama-3.3-70b-instruct:free
       - key: ALLOWED_ORIGINS
         value: https://clipcheck.vercel.app
+      - key: YOUTUBE_API_KEY
+        sync: false

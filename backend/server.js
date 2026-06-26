@@ -14,6 +14,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const ytdl = require('@distube/ytdl-core');
 const { fetchTranscriptAll } = require('./transcript_fetcher');
+const { getTranscriptWithRetries, validateYouTubeUrl } = require('./services/transcriptService');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -648,23 +649,43 @@ async function getTranscript(videoUrl, startTime = 0, endTime = null, lang = 'en
             if (!videoId) return { success: false, error: 'Invalid YouTube URL format.', platform };
 
             console.log(`  YouTube video ID: ${videoId} (lang: ${lang})`);
-            const result = await withTimeout(
-                getYoutubeTranscript(videoId, lang),
-                15000,
-                'YouTube transcript fetch'
-            );
-            if (!result) {
+
+            const result = await getTranscriptWithRetries(videoUrl, lang);
+
+            if (!result.success) {
                 console.log('  ❌ All transcript methods exhausted for this video');
                 return {
                     success: false,
-                    errorCode: 'TRANSCRIPT_UNAVAILABLE',
-                    error: 'Could not extract captions from this video. YouTube may be blocking automated caption access or the video may not have captions.',
-                    suggestion: 'Please paste the video transcript manually or try another video.',
-                    platform
+                    errorCode: result.errorCode || 'TRANSCRIPT_UNAVAILABLE',
+                    error: result.error || 'Could not extract captions from this video. YouTube may be blocking automated caption access or the video may not have captions.',
+                    suggestion: result.suggestion || 'Please paste the video transcript manually or try another video.',
+                    platform,
+                    source: result.source,
                 };
             }
 
-            let { fullText, segments } = result;
+            // Handle metadata-only response (transcript unavailable)
+            if (result.transcriptUnavailable) {
+                console.log('  📋 Transcript unavailable, using metadata for analysis');
+                return {
+                    success: true,
+                    transcript: null,
+                    segments: [],
+                    platform: 'youtube',
+                    video_id: videoId,
+                    title: result.metadata?.title || `YouTube Video (${videoId})`,
+                    thumbnail_url: result.metadata?.thumbnail_url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+                    duration: result.metadata?.duration || 0,
+                    author: result.metadata?.channel_name || '',
+                    source: 'metadata',
+                    transcriptUnavailable: true,
+                    analysisNote: result.analysisNote || 'Transcript unavailable. Analysis based on available metadata only.',
+                    segmentCount: 0,
+                };
+            }
+
+            let transcript = result.transcript;
+            let segments = result.segments || [];
 
             // If time range specified, filter
             if ((startTime > 0 || endTime) && segments && segments.length > 0) {
@@ -677,25 +698,27 @@ async function getTranscript(videoUrl, startTime = 0, endTime = null, lang = 'en
                     const filteredText = filteredSegments.map(s => s.text).join(' ').replace(/\s+/g, ' ').trim();
                     return {
                         success: true,
-                        transcript: filteredText || fullText,
+                        transcript: filteredText || transcript,
                         segments: filteredSegments,
                         platform: 'youtube',
                         video_id: videoId,
                         title: `YouTube Video (${videoId})`,
                         segmentCount: segments.length,
                         usedSegmentCount: filteredSegments.length,
+                        source: result.source,
                     };
                 }
             }
 
             return {
                 success: true,
-                transcript: fullText,
+                transcript,
                 segments,
                 platform: 'youtube',
                 video_id: videoId,
                 title: `YouTube Video (${videoId})`,
                 segmentCount: segments.length,
+                source: result.source,
             };
         }
 
@@ -987,9 +1010,68 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// ─── Browser Extension Endpoint ───
+app.post('/api/extension/analyze', async (req, res) => {
+    try {
+        const { url, transcript, title, session_id, language } = req.body;
+        if (!url || !url.trim()) return res.status(400).json({ detail: 'URL is required' });
+        if (!transcript || !transcript.trim()) return res.status(400).json({ detail: 'Transcript is required' });
+        if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+            return res.status(400).json({ detail: 'Only YouTube URLs are supported via extension' });
+        }
+
+        const videoId = extractYoutubeId(url);
+        const reportId = uuidv4();
+        const db = loadDb();
+        db.reports[reportId] = {
+            id: reportId,
+            video_url: url.trim(),
+            video_id: videoId,
+            platform: 'youtube',
+            title: title || `YouTube Video (${videoId || 'unknown'})`,
+            status: 'processing',
+            session_id: session_id || 'extension',
+            language: language || 'en',
+            with_video: false,
+            transcript: transcript.trim(),
+            segments: [{ text: transcript.trim(), offset: 0, duration: 0 }],
+            thumbnail_url: videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null,
+            duration: 0,
+            author: '',
+            start_time: null,
+            end_time: null,
+            summary: null,
+            claims: [],
+            progress: 'Transcript received from extension, starting analysis...',
+            error: null,
+            source: 'browser-extension',
+            created_at: new Date().toISOString(),
+            completed_at: null,
+        };
+        saveDb(db);
+
+        const reportLang = language || 'en';
+        processReport(reportId, url, 0, null, reportLang, '').catch(err => {
+            console.error(`Background error for ${reportId}:`, err);
+            const db2 = loadDb();
+            if (db2.reports[reportId]) {
+                db2.reports[reportId].status = 'failed';
+                db2.reports[reportId].error = `Processing error: ${err.message}`;
+                db2.reports[reportId].completed_at = new Date().toISOString();
+                saveDb(db2);
+            }
+        });
+
+        res.json({ report_id: reportId, status: 'processing', message: 'Extension analysis started.' });
+    } catch (e) {
+        console.error('Extension submit error:', e);
+        res.status(500).json({ detail: 'Internal server error' });
+    }
+});
+
 app.post('/api/fact-check', async (req, res) => {
     try {
-        const { url, session_id, start_time, end_time, language, with_video, manualTranscript } = req.body;
+        const { url, session_id, start_time, end_time, language, with_video, manualTranscript, source, analyzeWithoutTranscript } = req.body;
         if (!url || !url.trim()) return res.status(400).json({ detail: 'URL is required' });
         const trimmedUrl = url.trim();
         if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
@@ -1028,6 +1110,8 @@ app.post('/api/fact-check', async (req, res) => {
             claims: [],
             progress: 'Starting analysis...',
             error: null,
+            source: source || null,
+            analyze_without_transcript: analyzeWithoutTranscript || false,
             created_at: new Date().toISOString(),
             completed_at: null,
         };
@@ -1105,9 +1189,25 @@ async function processReport(reportId, videoUrl, startTime = 0, endTime = null, 
         if (db.reports[reportId]) { db.reports[reportId].progress = 'Fetching transcript...'; saveDb(db); }
 
         let transcriptResult;
+        const reportData = loadDb().reports[reportId];
+        const source = reportData?.source;
 
-        if (manualTranscript) {
-            console.log('  📝 Step 1: Using manual transcript...');
+        if (source === 'browser-extension') {
+            console.log('  📦 Source: browser extension — transcript already provided, skipping extraction');
+            transcriptResult = {
+                success: true,
+                transcript: reportData.transcript,
+                segments: reportData.segments || [{ text: reportData.transcript, offset: 0, duration: 0 }],
+                video_id: reportData.video_id || extractYoutubeId(videoUrl),
+                platform: 'youtube',
+                title: reportData.title || `YouTube Video (${videoUrl})`,
+                author: reportData.author || '',
+                segmentCount: 1,
+                usedSegmentCount: 1,
+                source: 'browser-extension',
+            };
+        } else if (manualTranscript) {
+            console.log('  📝 Step 5: Using manual transcript...');
             const segments = [{ text: manualTranscript, offset: 0, duration: 0 }];
             transcriptResult = {
                 success: true,
@@ -1119,9 +1219,12 @@ async function processReport(reportId, videoUrl, startTime = 0, endTime = null, 
                 author: '',
                 segmentCount: 1,
                 usedSegmentCount: 1,
+                source: 'manual',
             };
         } else {
-            console.log('  📝 Step 1: Getting transcript...');
+            console.log('  📝 Starting multi-layer transcript extraction...');
+            db = loadDb();
+            if (db.reports[reportId]) { db.reports[reportId].progress = 'Checking captions...'; saveDb(db); }
             transcriptResult = await getTranscript(videoUrl, startTime, endTime, language);
         }
 
@@ -1140,18 +1243,67 @@ async function processReport(reportId, videoUrl, startTime = 0, endTime = null, 
             return;
         }
 
+        // Handle metadata-only analysis (transcript unavailable)
+        if (transcriptResult.transcriptUnavailable) {
+            console.log('  📋 Transcript unavailable — running metadata-only analysis');
+            report.transcript = null;
+            report.segments = [];
+            report.video_id = transcriptResult.video_id || report.video_id;
+            report.platform = transcriptResult.platform || platform;
+            report.title = transcriptResult.title || report.title;
+            report.author = transcriptResult.author || report.author || '';
+            report.thumbnail_url = transcriptResult.thumbnail_url || report.thumbnail_url;
+            report.duration = transcriptResult.duration || report.duration;
+            report.transcript_unavailable = true;
+            report.analysis_note = transcriptResult.analysisNote || 'Transcript unavailable. Analysis based on available metadata only.';
+            report.progress = 'Transcript unavailable, analyzing metadata...';
+            saveDb(db);
+
+            // Run fact-check on available metadata (title + description)
+            const metadataText = [
+                report.title || '',
+                transcriptResult.analysisNote || '',
+                report.author ? `Channel: ${report.author}` : '',
+                report.duration ? `Duration: ${report.duration}s` : '',
+            ].filter(Boolean).join('. ');
+            console.log(`  🔎 Running metadata-only analysis...`);
+            const factCheckResult = await runFactCheckPipeline(metadataText, reportId, [], report.language || 'en');
+
+            db = loadDb();
+            if (db.reports[reportId]) {
+                db.reports[reportId].progress = 'Generating report...';
+                saveDb(db);
+            }
+            await new Promise(r => setTimeout(r, 500));
+
+            db = loadDb();
+            if (db.reports[reportId]) {
+                const r = db.reports[reportId];
+                r.claims = factCheckResult.claims;
+                r.summary = factCheckResult.summary || 'Transcript unavailable. Analysis based on available metadata only.';
+                r.status = 'completed';
+                r.progress = 'Completed!';
+                r.completed_at = new Date().toISOString();
+                saveDb(db);
+            }
+            console.log(`  ✅ Metadata-only analysis complete! ${factCheckResult.claims.length} items analyzed.`);
+            return;
+        }
+
         report.transcript = transcriptResult.transcript;
         report.segments = transcriptResult.segments || [];
         report.video_id = transcriptResult.video_id || report.video_id;
-        report.platform = transcriptResult.platform;
-        report.title = transcriptResult.title;
+        report.platform = transcriptResult.platform || platform;
+        report.title = transcriptResult.title || report.title;
         report.author = transcriptResult.author || report.author || '';
+        report.thumbnail_url = transcriptResult.thumbnail_url || report.thumbnail_url;
+        report.duration = transcriptResult.duration || report.duration;
         report.segment_count = transcriptResult.segmentCount;
         report.used_segment_count = transcriptResult.usedSegmentCount;
         report.progress = 'Transcript obtained! Extracting claims...';
         saveDb(db);
 
-        console.log(`  ✅ Transcript obtained (${transcriptResult.transcript.length} chars)`);
+        console.log(`  ✅ Transcript obtained (${transcriptResult.transcript.length} chars) via ${transcriptResult.source || 'unknown'}`);
 
         console.log('  🔎 Step 2: Running fact-check pipeline...');
         const factCheckResult = await runFactCheckPipeline(

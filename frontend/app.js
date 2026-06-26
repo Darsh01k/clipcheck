@@ -272,7 +272,7 @@ async function pollReport(reportId) {
                 const tipEl = document.getElementById('processing-note');
                 if (tipEl && tipEl.dataset.stuck) {
                     delete tipEl.dataset.stuck;
-                    tipEl.innerHTML = '⚡ AI is analyzing claims · Searching the web for evidence · This usually takes 1-3 minutes';
+                    tipEl.innerHTML = '✓ Checking captions... ↓ Trying backup extraction... ↓ Ready for analysis.';
                 }
             }
 
@@ -720,7 +720,7 @@ function resetProgress(textMode = false) {
     if (label) label.textContent = '0%';
     const stepLabels = textMode
         ? ['Analyzing text', 'Extracting claims', 'Searching web', 'Verifying facts', 'Generating report']
-        : ['Fetching video info', 'Transcribing audio', 'Extracting claims', 'Verifying facts', 'Generating report'];
+        : ['Checking captions', 'Trying backup extraction', 'Reading video metadata', 'Verifying facts', 'Generating report'];
     for (let i = 1; i <= 5; i++) {
         const s = document.getElementById(`proc-step${i}`);
         if (s) {
@@ -761,6 +761,12 @@ function updateProgress(message) {
         } else {
             if (m.includes('getting video') || m.includes('starting')) {
                 titleEl.textContent = '📺 Fetching video info...';
+            } else if (m.includes('checking captions')) {
+                titleEl.textContent = '📝 Checking captions...';
+            } else if (m.includes('trying backup') || m.includes('download')) {
+                titleEl.textContent = '🔄 Trying backup extraction...';
+            } else if (m.includes('reading metadata') || m.includes('metadata') || m.includes('transcript unavailable')) {
+                titleEl.textContent = '📋 Reading video metadata...';
             } else if (m.includes('transcript')) {
                 titleEl.textContent = '📝 Getting transcript...';
             } else if (m.includes('extracting claim')) {
@@ -789,7 +795,9 @@ function updateProgressBarFromReport(report) {
     if ((p.includes('starting') && !p.includes('verification')) || (p === 'starting analysis...')) pct = 3;
     else if (p.includes('getting video') || (p.includes('video info') && !p.includes('obtained'))) pct = 8;
     else if (p.includes('video info obtained') || p.includes('video info fetched')) pct = 12;
-    else if (p.includes('fetching transcript') || p.includes('transcribing') || p.includes('transcript...') || p.includes('obtaining transcript')) pct = 18;
+    else if (p.includes('checking captions') || p.includes('fetching transcript') || p.includes('transcribing') || p.includes('obtaining transcript')) pct = 18;
+    else if (p.includes('trying backup') || p.includes('download')) pct = 22;
+    else if (p.includes('reading metadata') || p.includes('transcript unavailable')) pct = 25;
     else if (p.includes('transcript obtained') || p.includes('transcript!')) pct = 25;
     else if (p.includes('extracting claims')) pct = 30;
     else if ((p.includes('found') && p.includes('claims')) || p.includes('starting verification') || p.includes('no claims found') || p.includes('verifying your question')) pct = 35;
@@ -936,9 +944,24 @@ function updateProcessingStepsFromReport(report) {
 
     if (!steps.s1?.classList.contains('done')) markDone(steps.s1);
 
-    if (p.includes('fetching transcript') || p.includes('transcribing') || p.includes('video info obtained') || p.includes('transcript...') || p.includes('obtaining transcript')) {
+    if (p.includes('checking captions') || p.includes('fetching transcript') || p.includes('transcribing') || p.includes('video info obtained') || p.includes('obtaining transcript') || (p.includes('transcript') && p.includes('...'))) {
         clearSteps(3);
         markActive(steps.s2);
+        return;
+    }
+
+    if (p.includes('trying backup') || p.includes('download')) {
+        clearSteps(4);
+        markActive(steps.s3);
+        return;
+    }
+
+    if (p.includes('reading metadata') || p.includes('transcript unavailable') || p.includes('metadata only')) {
+        if (!steps.s1?.classList.contains('done')) markDone(steps.s1);
+        if (!steps.s2?.classList.contains('done')) markDone(steps.s2);
+        if (!steps.s3?.classList.contains('done')) markDone(steps.s3);
+        clearSteps(5);
+        markActive(steps.s4);
         return;
     }
 
@@ -948,8 +971,9 @@ function updateProcessingStepsFromReport(report) {
 
     if (p.includes('extracting claims')) {
         if (!steps.s2?.classList.contains('done')) markDone(steps.s2);
-        clearSteps(4);
-        markActive(steps.s3);
+        if (!steps.s3?.classList.contains('done')) markDone(steps.s3);
+        clearSteps(5);
+        markActive(steps.s4);
         return;
     }
 

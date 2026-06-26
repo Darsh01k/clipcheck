@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClipCheck</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <span class="logo">✓</span>
+      <span class="title">ClipCheck</span>
+    </div>
+
+    <div id="status-default" class="status-section">
+      <p class="status-text">Click below to fact-check this YouTube video.</p>
+      <p class="status-hint">The extension will extract the video transcript and send it to ClipCheck for AI-powered analysis.</p>
+      <button id="analyze-btn" class="btn btn-primary">Analyze this Video</button>
+    </div>
+
+    <div id="status-loading" class="status-section" style="display:none;">
+      <div class="spinner"></div>
+      <p class="status-text">Extracting transcript...</p>
+      <p class="status-hint" id="loading-detail">Fetching caption data from YouTube</p>
+    </div>
+
+    <div id="status-success" class="status-section" style="display:none;">
+      <div class="success-icon">✓</div>
+      <p class="status-text">Transcript extracted!</p>
+      <p class="status-hint" id="success-detail">Sending to ClipCheck for analysis...</p>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+    </div>
+
+    <div id="status-error" class="status-section" style="display:none;">
+      <div class="error-icon">✕</div>
+      <p class="status-text" id="error-text">Could not extract transcript</p>
+      <p class="status-hint" id="error-detail">Make sure you are on a YouTube video page with captions enabled.</p>
+      <button id="retry-btn" class="btn btn-secondary">Retry</button>
+    </div>
+
+    <div id="status-result" class="status-section" style="display:none;">
+      <div class="success-icon">✓</div>
+      <p class="status-text">Analysis started!</p>
+      <p class="status-hint" id="result-detail">Your fact-check report is being generated.</p>
+      <a id="report-link" class="btn btn-primary" href="#" target="_blank">View Report</a>
+    </div>
+
+    <div class="footer">
+      <p>ClipCheck — AI-powered fact-checking</p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
