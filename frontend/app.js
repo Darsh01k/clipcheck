@@ -1763,7 +1763,6 @@ function buildPdfHtml(report) {
     const pf = platformLabel[report.platform] || report.platform || 'Source';
     const title = report.title ? `${pf} — ${report.title.replace(/^Fact-Check:\s*/, '').replace(/["']/g, '').substring(0, 60)}` : `${pf} Fact-Check Report`;
 
-    // Build video info card
     let infoCardHtml = '';
     if (report.video_id && report.platform === 'youtube' && report.thumbnail_url) {
         infoCardHtml = `
@@ -1781,7 +1780,6 @@ function buildPdfHtml(report) {
             </div>`;
     }
 
-    // Build source card
     let sourceCardHtml = '';
     const plat = report.platform || '';
     if (plat === 'text') {
@@ -1801,7 +1799,6 @@ function buildPdfHtml(report) {
             </div>`;
     }
 
-    // Build claims
     let claimsHtml = '';
     claims.forEach(claim => {
         const verdict = (claim.verdict || 'UNVERIFIABLE').toLowerCase();
@@ -1859,94 +1856,96 @@ function buildPdfHtml(report) {
         ? '<div style="background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:40px 24px;text-align:center"><p style="color:#70707e">No factual claims were identified in this video.</p></div>'
         : '';
 
-    return `
-    <style>
-        #pdf-export { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0b0b0e; color: #f0f0f4; line-height: 1.5; }
-        #pdf-export .pdf-page { padding: 30px; max-width: 800px; margin: 0 auto; }
-        #pdf-export .report-header { margin-bottom: 20px; }
-        #pdf-export .report-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: #22d65e; font-weight: 600; }
-        #pdf-export .report-meta { font-size: 0.8rem; color: #70707e; margin-top: 4px; }
-        #pdf-export .video-info-card { display: flex; gap: 16px; align-items: center; background: #141418; border: 1px solid #2c2c35; border-radius: 14px; padding: 14px; margin-bottom: 20px; }
-        #pdf-export .video-info-card img { width: 160px; height: 90px; object-fit: cover; border-radius: 10px; flex-shrink: 0; }
-        #pdf-export .video-info-text { flex: 1; min-width: 0; }
-        #pdf-export .video-info-text h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
-        #pdf-export .video-meta { font-size: 0.8rem; color: #70707e; }
-        #pdf-export .source-card { background: #141418; border: 1px solid #2c2c35; border-radius: 14px; padding: 16px; margin-bottom: 20px; }
-        #pdf-export .source-card-label { font-size: 0.75rem; font-weight: 600; color: #70707e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
-        #pdf-export .source-text-content { font-size: 0.9rem; line-height: 1.6; color: #f0f0f4; background: #1e1e24; border-radius: 10px; padding: 14px; white-space: pre-wrap; word-break: break-word; }
-        #pdf-export .source-tweet-author { font-size: 0.85rem; font-weight: 600; color: #a0a0b0; margin-bottom: 6px; }
-        #pdf-export .report-summary { background: #141418; border: 1px solid #2c2c35; border-radius: 14px; padding: 20px 24px; font-size: 1rem; line-height: 1.7; margin-bottom: 20px; }
-        #pdf-export .score-card { background: #141418; border: 1px solid #2c2c35; border-radius: 14px; padding: 24px; margin-bottom: 24px; text-align: center; }
-        #pdf-export .score-inner { display: flex; align-items: center; gap: 28px; justify-content: center; flex-wrap: wrap; }
-        #pdf-export .score-ring-wrap { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
-        #pdf-export .score-ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-        #pdf-export .score-ring-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        #pdf-export .score-value { font-size: 1.8rem; font-weight: 800; color: #f0f0f4; line-height: 1; }
-        #pdf-export .score-label { font-size: 0.65rem; color: #70707e; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
-        #pdf-export .score-details { display: flex; flex-direction: column; gap: 6px; text-align: left; }
-        #pdf-export .score-row { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #a0a0b0; }
-        #pdf-export .score-row strong { color: #f0f0f4; font-weight: 700; }
-        #pdf-export .score-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-        #pdf-export .score-rating { margin-top: 16px; padding: 8px 20px; border-radius: 100px; font-size: 0.9rem; font-weight: 700; display: inline-block; }
-        #pdf-export .score-rating.trustworthy { background: rgba(34,214,94,0.15); color: #22d65e; }
-        #pdf-export .score-rating.mixed { background: rgba(245,168,11,0.15); color: #f5a80b; }
-        #pdf-export .score-rating.untrustworthy { background: rgba(239,68,85,0.15); color: #ef4455; }
-        #pdf-export .score-rating.unverifiable { background: rgba(113,113,122,0.15); color: #70707e; }
-        #pdf-export .claim-card { background: #141418; border: 1px solid #2c2c35; border-radius: 14px; overflow: hidden; margin-bottom: 14px; }
-        #pdf-export .claim-header { display: flex; align-items: flex-start; gap: 14px; padding: 20px 24px; }
-        #pdf-export .claim-badge { padding: 4px 14px; border-radius: 100px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
-        #pdf-export .claim-badge.true { background: rgba(34,214,94,0.15); color: #22d65e; }
-        #pdf-export .claim-badge.false { background: rgba(239,68,85,0.15); color: #ef4455; }
-        #pdf-export .claim-badge.misleading { background: rgba(245,168,11,0.15); color: #f5a80b; }
-        #pdf-export .claim-badge.unverifiable { background: rgba(113,113,122,0.15); color: #70707e; }
-        #pdf-export .claim-text { flex: 1; font-size: 0.95rem; line-height: 1.6; }
-        #pdf-export .claim-body { padding: 0 24px 20px; border-top: 1px solid #2c2c35; }
-        #pdf-export .claim-meta-bar { display: flex; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
-        #pdf-export .claim-detail { margin-top: 16px; }
-        #pdf-export .claim-detail-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #70707e; font-weight: 600; margin-bottom: 6px; }
-        #pdf-export .confidence-meter { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
-        #pdf-export .confidence-bar-bg { width: 100px; height: 6px; background: #2c2c35; border-radius: 100px; overflow: hidden; }
-        #pdf-export .confidence-bar-fill { height: 100%; border-radius: 100px; }
-        #pdf-export .confidence-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
-        #pdf-export .confidence-label.high { color: #22d65e; }
-        #pdf-export .confidence-label.medium { color: #f5a80b; }
-        #pdf-export .confidence-label.low { color: #ef4455; }
-        #pdf-export .claim-source { font-size: 0.85rem; margin-bottom: 6px; }
-        #pdf-export .claim-source a { color: #22d65e; text-decoration: underline; }
-        #pdf-export .pdf-footer { text-align: center; font-size: 0.75rem; color: #70707e; margin-top: 32px; padding-top: 16px; border-top: 1px solid #2c2c35; }
-    </style>
-    <div class="pdf-page">
-        <div class="report-header">
-            <div class="report-label">${title}</div>
-            <div class="report-meta">${new Date(report.completed_at || report.created_at).toLocaleString()} · ${pf}</div>
-        </div>
-        ${infoCardHtml}
-        ${sourceCardHtml}
-        <div class="report-summary"><strong>Summary:</strong> ${(report.summary || 'No summary available.').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}</div>
-        <div class="score-card">
-            <div class="score-inner">
-                <div class="score-ring-wrap">
-                    <svg viewBox="0 0 120 120">
-                        <circle cx="60" cy="60" r="52" fill="none" stroke="#2c2c35" stroke-width="8"/>
-                        <circle cx="60" cy="60" r="52" fill="none" stroke="#22d65e" stroke-width="8" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"/>
-                    </svg>
-                    <div class="score-ring-text">
-                        <div class="score-value">${truthRatio}%</div>
-                        <div class="score-label">Truth</div>
+    return {
+        styles: `
+#pdf-export { font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0b0b0e;color:#f0f0f4;line-height:1.5; }
+#pdf-export .pdf-page { padding:30px;max-width:800px;margin:0 auto; }
+#pdf-export .report-header { margin-bottom:20px; }
+#pdf-export .report-label { font-size:0.75rem;text-transform:uppercase;letter-spacing:0.1em;color:#22d65e;font-weight:600; }
+#pdf-export .report-meta { font-size:0.8rem;color:#70707e;margin-top:4px; }
+#pdf-export .video-info-card { display:flex;gap:16px;align-items:center;background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:14px;margin-bottom:20px; }
+#pdf-export .video-info-card img { width:160px;height:90px;object-fit:cover;border-radius:10px;flex-shrink:0; }
+#pdf-export .video-info-text { flex:1;min-width:0; }
+#pdf-export .video-info-text h3 { font-size:0.95rem;font-weight:600;margin-bottom:4px; }
+#pdf-export .video-meta { font-size:0.8rem;color:#70707e; }
+#pdf-export .source-card { background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:16px;margin-bottom:20px; }
+#pdf-export .source-card-label { font-size:0.75rem;font-weight:600;color:#70707e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px; }
+#pdf-export .source-text-content { font-size:0.9rem;line-height:1.6;color:#f0f0f4;background:#1e1e24;border-radius:10px;padding:14px;white-space:pre-wrap;word-break:break-word; }
+#pdf-export .source-tweet-author { font-size:0.85rem;font-weight:600;color:#a0a0b0;margin-bottom:6px; }
+#pdf-export .report-summary { background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:20px 24px;font-size:1rem;line-height:1.7;margin-bottom:20px; }
+#pdf-export .score-card { background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:24px;margin-bottom:24px;text-align:center; }
+#pdf-export .score-inner { display:flex;align-items:center;gap:28px;justify-content:center;flex-wrap:wrap; }
+#pdf-export .score-ring-wrap { position:relative;width:120px;height:120px;flex-shrink:0; }
+#pdf-export .score-ring-wrap svg { width:100%;height:100%;transform:rotate(-90deg); }
+#pdf-export .score-ring-text { position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center; }
+#pdf-export .score-value { font-size:1.8rem;font-weight:800;color:#f0f0f4;line-height:1; }
+#pdf-export .score-label { font-size:0.65rem;color:#70707e;text-transform:uppercase;letter-spacing:0.1em;font-weight:600; }
+#pdf-export .score-details { display:flex;flex-direction:column;gap:6px;text-align:left; }
+#pdf-export .score-row { display:flex;align-items:center;gap:8px;font-size:0.85rem;color:#a0a0b0; }
+#pdf-export .score-row strong { color:#f0f0f4;font-weight:700; }
+#pdf-export .score-dot { width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0; }
+#pdf-export .score-rating { margin-top:16px;padding:8px 20px;border-radius:100px;font-size:0.9rem;font-weight:700;display:inline-block; }
+#pdf-export .score-rating.trustworthy { background:rgba(34,214,94,0.15);color:#22d65e; }
+#pdf-export .score-rating.mixed { background:rgba(245,168,11,0.15);color:#f5a80b; }
+#pdf-export .score-rating.untrustworthy { background:rgba(239,68,85,0.15);color:#ef4455; }
+#pdf-export .score-rating.unverifiable { background:rgba(113,113,122,0.15);color:#70707e; }
+#pdf-export .claim-card { background:#141418;border:1px solid #2c2c35;border-radius:14px;overflow:hidden;margin-bottom:14px; }
+#pdf-export .claim-header { display:flex;align-items:flex-start;gap:14px;padding:20px 24px; }
+#pdf-export .claim-badge { padding:4px 14px;border-radius:100px;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;flex-shrink:0;margin-top:2px; }
+#pdf-export .claim-badge.true { background:rgba(34,214,94,0.15);color:#22d65e; }
+#pdf-export .claim-badge.false { background:rgba(239,68,85,0.15);color:#ef4455; }
+#pdf-export .claim-badge.misleading { background:rgba(245,168,11,0.15);color:#f5a80b; }
+#pdf-export .claim-badge.unverifiable { background:rgba(113,113,122,0.15);color:#70707e; }
+#pdf-export .claim-text { flex:1;font-size:0.95rem;line-height:1.6; }
+#pdf-export .claim-body { padding:0 24px 20px;border-top:1px solid #2c2c35; }
+#pdf-export .claim-meta-bar { display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap; }
+#pdf-export .claim-detail { margin-top:16px; }
+#pdf-export .claim-detail-label { font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:#70707e;font-weight:600;margin-bottom:6px; }
+#pdf-export .confidence-meter { display:flex;align-items:center;gap:8px;margin:10px 0; }
+#pdf-export .confidence-bar-bg { width:100px;height:6px;background:#2c2c35;border-radius:100px;overflow:hidden; }
+#pdf-export .confidence-bar-fill { height:100%;border-radius:100px; }
+#pdf-export .confidence-label { font-size:0.7rem;font-weight:600;text-transform:uppercase; }
+#pdf-export .confidence-label.high { color:#22d65e; }
+#pdf-export .confidence-label.medium { color:#f5a80b; }
+#pdf-export .confidence-label.low { color:#ef4455; }
+#pdf-export .claim-source { font-size:0.85rem;margin-bottom:6px; }
+#pdf-export .claim-source a { color:#22d65e;text-decoration:underline; }
+#pdf-export .pdf-footer { text-align:center;font-size:0.75rem;color:#70707e;margin-top:32px;padding-top:16px;border-top:1px solid #2c2c35; }
+        `,
+        content: `
+        <div class="pdf-page">
+            <div class="report-header">
+                <div class="report-label">${title}</div>
+                <div class="report-meta">${new Date(report.completed_at || report.created_at).toLocaleString()} · ${pf}</div>
+            </div>
+            ${infoCardHtml}
+            ${sourceCardHtml}
+            <div class="report-summary"><strong>Summary:</strong> ${(report.summary || 'No summary available.').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}</div>
+            <div class="score-card">
+                <div class="score-inner">
+                    <div class="score-ring-wrap">
+                        <svg viewBox="0 0 120 120">
+                            <circle cx="60" cy="60" r="52" fill="none" stroke="#2c2c35" stroke-width="8"/>
+                            <circle cx="60" cy="60" r="52" fill="none" stroke="#22d65e" stroke-width="8" stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"/>
+                        </svg>
+                        <div class="score-ring-text">
+                            <div class="score-value">${truthRatio}%</div>
+                            <div class="score-label">Truth</div>
+                        </div>
+                    </div>
+                    <div class="score-details">
+                        <div class="score-row"><span class="score-dot" style="background:#22d65e"></span> True: <strong>${trueC}</strong></div>
+                        <div class="score-row"><span class="score-dot" style="background:#ef4455"></span> False: <strong>${falseC}</strong></div>
+                        <div class="score-row"><span class="score-dot" style="background:#f5a80b"></span> Misleading: <strong>${misleadingC}</strong></div>
+                        <div class="score-row"><span class="score-dot" style="background:#70707e"></span> Unverifiable: <strong>${unverifiableC}</strong></div>
                     </div>
                 </div>
-                <div class="score-details">
-                    <div class="score-row"><span class="score-dot" style="background:#22d65e"></span> True: <strong>${trueC}</strong></div>
-                    <div class="score-row"><span class="score-dot" style="background:#ef4455"></span> False: <strong>${falseC}</strong></div>
-                    <div class="score-row"><span class="score-dot" style="background:#f5a80b"></span> Misleading: <strong>${misleadingC}</strong></div>
-                    <div class="score-row"><span class="score-dot" style="background:#70707e"></span> Unverifiable: <strong>${unverifiableC}</strong></div>
-                </div>
+                <div class="score-rating ${ratingClass}">${ratingText}</div>
             </div>
-            <div class="score-rating ${ratingClass}">${ratingText}</div>
-        </div>
-        ${noClaimsHtml || claimsHtml}
-        <div class="pdf-footer">Generated by ClipCheck · AI-generated results</div>
-    </div>`;
+            ${noClaimsHtml || claimsHtml}
+            <div class="pdf-footer">Generated by ClipCheck · AI-generated results</div>
+        </div>`
+    };
 }
 
 async function exportPdf() {
@@ -1955,11 +1954,16 @@ async function exportPdf() {
 
     const wrapper = document.createElement('div');
     wrapper.id = 'pdf-export';
-    wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;width:800px;background:#0b0b0e;z-index:-1;';
+    wrapper.style.cssText = 'position:fixed;top:0;left:0;width:800px;background:#0b0b0e;opacity:0.01;z-index:-1;pointer-events:none;';
     document.body.appendChild(wrapper);
-    wrapper.innerHTML = buildPdfHtml(report);
 
-    await new Promise(r => setTimeout(r, 600));
+    const html = buildPdfHtml(report);
+    const styleEl = document.createElement('style');
+    styleEl.textContent = html.styles;
+    wrapper.appendChild(styleEl);
+    wrapper.insertAdjacentHTML('beforeend', html.content);
+
+    await new Promise(r => setTimeout(r, 1500));
 
     try {
         await html2pdf()
@@ -1967,7 +1971,14 @@ async function exportPdf() {
                 margin: [8, 10, 8, 10],
                 filename: `clipcheck-report-${report.id?.substring(0, 8) || 'report'}.pdf`,
                 image: { type: 'jpeg', quality: 0.95 },
-                html2canvas: { scale: 2, useCORS: true, backgroundColor: '#0b0b0e', logging: false },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#0b0b0e',
+                    logging: false,
+                    width: wrapper.scrollWidth,
+                    height: wrapper.scrollHeight,
+                },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
             })
