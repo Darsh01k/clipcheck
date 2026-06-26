@@ -1858,59 +1858,58 @@ function buildPdfHtml(report) {
 
     return {
         styles: `
-#pdf-export { font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0b0b0e;color:#f0f0f4;line-height:1.5; }
-#pdf-export .pdf-page { padding:30px;max-width:800px;margin:0 auto; }
-#pdf-export .report-header { margin-bottom:20px; }
-#pdf-export .report-label { font-size:0.75rem;text-transform:uppercase;letter-spacing:0.1em;color:#22d65e;font-weight:600; }
-#pdf-export .report-meta { font-size:0.8rem;color:#70707e;margin-top:4px; }
-#pdf-export .video-info-card { display:flex;gap:16px;align-items:center;background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:14px;margin-bottom:20px; }
-#pdf-export .video-info-card img { width:160px;height:90px;object-fit:cover;border-radius:10px;flex-shrink:0; }
-#pdf-export .video-info-text { flex:1;min-width:0; }
-#pdf-export .video-info-text h3 { font-size:0.95rem;font-weight:600;margin-bottom:4px; }
-#pdf-export .video-meta { font-size:0.8rem;color:#70707e; }
-#pdf-export .source-card { background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:16px;margin-bottom:20px; }
-#pdf-export .source-card-label { font-size:0.75rem;font-weight:600;color:#70707e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px; }
-#pdf-export .source-text-content { font-size:0.9rem;line-height:1.6;color:#f0f0f4;background:#1e1e24;border-radius:10px;padding:14px;white-space:pre-wrap;word-break:break-word; }
-#pdf-export .source-tweet-author { font-size:0.85rem;font-weight:600;color:#a0a0b0;margin-bottom:6px; }
-#pdf-export .report-summary { background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:20px 24px;font-size:1rem;line-height:1.7;margin-bottom:20px; }
-#pdf-export .score-card { background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:24px;margin-bottom:24px;text-align:center; }
-#pdf-export .score-inner { display:flex;align-items:center;gap:28px;justify-content:center;flex-wrap:wrap; }
-#pdf-export .score-ring-wrap { position:relative;width:120px;height:120px;flex-shrink:0; }
-#pdf-export .score-ring-wrap svg { width:100%;height:100%;transform:rotate(-90deg); }
-#pdf-export .score-ring-text { position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center; }
-#pdf-export .score-value { font-size:1.8rem;font-weight:800;color:#f0f0f4;line-height:1; }
-#pdf-export .score-label { font-size:0.65rem;color:#70707e;text-transform:uppercase;letter-spacing:0.1em;font-weight:600; }
-#pdf-export .score-details { display:flex;flex-direction:column;gap:6px;text-align:left; }
-#pdf-export .score-row { display:flex;align-items:center;gap:8px;font-size:0.85rem;color:#a0a0b0; }
-#pdf-export .score-row strong { color:#f0f0f4;font-weight:700; }
-#pdf-export .score-dot { width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0; }
-#pdf-export .score-rating { margin-top:16px;padding:8px 20px;border-radius:100px;font-size:0.9rem;font-weight:700;display:inline-block; }
-#pdf-export .score-rating.trustworthy { background:rgba(34,214,94,0.15);color:#22d65e; }
-#pdf-export .score-rating.mixed { background:rgba(245,168,11,0.15);color:#f5a80b; }
-#pdf-export .score-rating.untrustworthy { background:rgba(239,68,85,0.15);color:#ef4455; }
-#pdf-export .score-rating.unverifiable { background:rgba(113,113,122,0.15);color:#70707e; }
-#pdf-export .claim-card { background:#141418;border:1px solid #2c2c35;border-radius:14px;overflow:hidden;margin-bottom:14px; }
-#pdf-export .claim-header { display:flex;align-items:flex-start;gap:14px;padding:20px 24px; }
-#pdf-export .claim-badge { padding:4px 14px;border-radius:100px;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;flex-shrink:0;margin-top:2px; }
-#pdf-export .claim-badge.true { background:rgba(34,214,94,0.15);color:#22d65e; }
-#pdf-export .claim-badge.false { background:rgba(239,68,85,0.15);color:#ef4455; }
-#pdf-export .claim-badge.misleading { background:rgba(245,168,11,0.15);color:#f5a80b; }
-#pdf-export .claim-badge.unverifiable { background:rgba(113,113,122,0.15);color:#70707e; }
-#pdf-export .claim-text { flex:1;font-size:0.95rem;line-height:1.6; }
-#pdf-export .claim-body { padding:0 24px 20px;border-top:1px solid #2c2c35; }
-#pdf-export .claim-meta-bar { display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap; }
-#pdf-export .claim-detail { margin-top:16px; }
-#pdf-export .claim-detail-label { font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:#70707e;font-weight:600;margin-bottom:6px; }
-#pdf-export .confidence-meter { display:flex;align-items:center;gap:8px;margin:10px 0; }
-#pdf-export .confidence-bar-bg { width:100px;height:6px;background:#2c2c35;border-radius:100px;overflow:hidden; }
-#pdf-export .confidence-bar-fill { height:100%;border-radius:100px; }
-#pdf-export .confidence-label { font-size:0.7rem;font-weight:600;text-transform:uppercase; }
-#pdf-export .confidence-label.high { color:#22d65e; }
-#pdf-export .confidence-label.medium { color:#f5a80b; }
-#pdf-export .confidence-label.low { color:#ef4455; }
-#pdf-export .claim-source { font-size:0.85rem;margin-bottom:6px; }
-#pdf-export .claim-source a { color:#22d65e;text-decoration:underline; }
-#pdf-export .pdf-footer { text-align:center;font-size:0.75rem;color:#70707e;margin-top:32px;padding-top:16px;border-top:1px solid #2c2c35; }
+.pdf-page { padding:30px;max-width:800px;margin:0 auto;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0b0b0e;color:#f0f0f4;line-height:1.5; }
+.report-header { margin-bottom:20px; }
+.report-label { font-size:0.75rem;text-transform:uppercase;letter-spacing:0.1em;color:#22d65e;font-weight:600; }
+.report-meta { font-size:0.8rem;color:#70707e;margin-top:4px; }
+.video-info-card { display:flex;gap:16px;align-items:center;background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:14px;margin-bottom:20px; }
+.video-info-card img { width:160px;height:90px;object-fit:cover;border-radius:10px;flex-shrink:0; }
+.video-info-text { flex:1;min-width:0; }
+.video-info-text h3 { font-size:0.95rem;font-weight:600;margin-bottom:4px; }
+.video-meta { font-size:0.8rem;color:#70707e; }
+.source-card { background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:16px;margin-bottom:20px; }
+.source-card-label { font-size:0.75rem;font-weight:600;color:#70707e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px; }
+.source-text-content { font-size:0.9rem;line-height:1.6;color:#f0f0f4;background:#1e1e24;border-radius:10px;padding:14px;white-space:pre-wrap;word-break:break-word; }
+.source-tweet-author { font-size:0.85rem;font-weight:600;color:#a0a0b0;margin-bottom:6px; }
+.report-summary { background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:20px 24px;font-size:1rem;line-height:1.7;margin-bottom:20px; }
+.score-card { background:#141418;border:1px solid #2c2c35;border-radius:14px;padding:24px;margin-bottom:24px;text-align:center; }
+.score-inner { display:flex;align-items:center;gap:28px;justify-content:center;flex-wrap:wrap; }
+.score-ring-wrap { position:relative;width:120px;height:120px;flex-shrink:0; }
+.score-ring-wrap svg { width:100%;height:100%;transform:rotate(-90deg); }
+.score-ring-text { position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center; }
+.score-value { font-size:1.8rem;font-weight:800;color:#f0f0f4;line-height:1; }
+.score-label { font-size:0.65rem;color:#70707e;text-transform:uppercase;letter-spacing:0.1em;font-weight:600; }
+.score-details { display:flex;flex-direction:column;gap:6px;text-align:left; }
+.score-row { display:flex;align-items:center;gap:8px;font-size:0.85rem;color:#a0a0b0; }
+.score-row strong { color:#f0f0f4;font-weight:700; }
+.score-dot { width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0; }
+.score-rating { margin-top:16px;padding:8px 20px;border-radius:100px;font-size:0.9rem;font-weight:700;display:inline-block; }
+.score-rating.trustworthy { background:rgba(34,214,94,0.15);color:#22d65e; }
+.score-rating.mixed { background:rgba(245,168,11,0.15);color:#f5a80b; }
+.score-rating.untrustworthy { background:rgba(239,68,85,0.15);color:#ef4455; }
+.score-rating.unverifiable { background:rgba(113,113,122,0.15);color:#70707e; }
+.claim-card { background:#141418;border:1px solid #2c2c35;border-radius:14px;overflow:hidden;margin-bottom:14px; }
+.claim-header { display:flex;align-items:flex-start;gap:14px;padding:20px 24px; }
+.claim-badge { padding:4px 14px;border-radius:100px;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;flex-shrink:0;margin-top:2px; }
+.claim-badge.true { background:rgba(34,214,94,0.15);color:#22d65e; }
+.claim-badge.false { background:rgba(239,68,85,0.15);color:#ef4455; }
+.claim-badge.misleading { background:rgba(245,168,11,0.15);color:#f5a80b; }
+.claim-badge.unverifiable { background:rgba(113,113,122,0.15);color:#70707e; }
+.claim-text { flex:1;font-size:0.95rem;line-height:1.6; }
+.claim-body { padding:0 24px 20px;border-top:1px solid #2c2c35; }
+.claim-meta-bar { display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap; }
+.claim-detail { margin-top:16px; }
+.claim-detail-label { font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:#70707e;font-weight:600;margin-bottom:6px; }
+.confidence-meter { display:flex;align-items:center;gap:8px;margin:10px 0; }
+.confidence-bar-bg { width:100px;height:6px;background:#2c2c35;border-radius:100px;overflow:hidden; }
+.confidence-bar-fill { height:100%;border-radius:100px; }
+.confidence-label { font-size:0.7rem;font-weight:600;text-transform:uppercase; }
+.confidence-label.high { color:#22d65e; }
+.confidence-label.medium { color:#f5a80b; }
+.confidence-label.low { color:#ef4455; }
+.claim-source { font-size:0.85rem;margin-bottom:6px; }
+.claim-source a { color:#22d65e;text-decoration:underline; }
+.pdf-footer { text-align:center;font-size:0.75rem;color:#70707e;margin-top:32px;padding-top:16px;border-top:1px solid #2c2c35; }
         `,
         content: `
         <div class="pdf-page">
@@ -1952,18 +1951,28 @@ async function exportPdf() {
     const report = _currentReportData;
     if (!report) { showToast('No report data to export'); return; }
 
-    const wrapper = document.createElement('div');
-    wrapper.id = 'pdf-export';
-    wrapper.style.cssText = 'position:fixed;top:0;left:0;width:800px;background:#0b0b0e;opacity:0.01;z-index:-1;pointer-events:none;';
-    document.body.appendChild(wrapper);
-
     const html = buildPdfHtml(report);
-    const styleEl = document.createElement('style');
-    styleEl.textContent = html.styles;
-    wrapper.appendChild(styleEl);
-    wrapper.insertAdjacentHTML('beforeend', html.content);
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:800px;height:600px;border:none;';
+    document.body.appendChild(iframe);
 
-    await new Promise(r => setTimeout(r, 1500));
+    const doc = iframe.contentDocument;
+    doc.open();
+    doc.write(`
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>${html.styles}</style>
+</head>
+<body style="margin:0;background:#0b0b0e;color:#f0f0f4;font-family:'Inter',sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
+${html.content}
+</body>
+</html>`);
+    doc.close();
+
+    await new Promise(r => setTimeout(r, 2000));
 
     try {
         await html2pdf()
@@ -1976,20 +1985,20 @@ async function exportPdf() {
                     useCORS: true,
                     backgroundColor: '#0b0b0e',
                     logging: false,
-                    width: wrapper.scrollWidth,
-                    height: wrapper.scrollHeight,
+                    width: iframe.contentDocument.body.scrollWidth,
+                    height: iframe.contentDocument.body.scrollHeight,
                 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                 pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
             })
-            .from(wrapper)
+            .from(iframe.contentDocument.body)
             .save();
         showToast('PDF downloaded!');
     } catch (err) {
         console.error('PDF error:', err);
         showError('PDF generation failed: ' + err.message);
     } finally {
-        if (document.body.contains(wrapper)) document.body.removeChild(wrapper);
+        if (document.body.contains(iframe)) document.body.removeChild(iframe);
     }
 }
 
