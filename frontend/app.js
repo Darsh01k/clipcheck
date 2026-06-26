@@ -1887,17 +1887,27 @@ async function loadReport(reportId) {
 }
 
 // ─── Error ───
+let _lastErrorUrl = '';
+
 function showError(message, report) {
+    const genericSection = document.getElementById('error-state-generic');
+    const transcriptSection = document.getElementById('error-transcript-section');
     const titleEl = document.getElementById('error-title');
     const detailEl = document.getElementById('error-message');
 
-    // Check for TRANSCRIPT_UNAVAILABLE error code
+    // Check for TRANSCRIPT_UNAVAILABLE error code — show manual paste guide
     if (report && report.errorCode === 'TRANSCRIPT_UNAVAILABLE') {
-        titleEl.textContent = 'Transcript not available';
-        detailEl.innerHTML = message + (report.suggestion ? '<br><br>' + report.suggestion : '');
+        genericSection.style.display = 'none';
+        transcriptSection.style.display = 'block';
+        _lastErrorUrl = report.video_url || '';
+        const urlEl = document.getElementById('ts-video-url');
+        if (urlEl) urlEl.textContent = _lastErrorUrl || 'youtube.com';
         navigateTo('error');
         return;
     }
+
+    genericSection.style.display = 'block';
+    transcriptSection.style.display = 'none';
 
     if (message) {
         const msg = message.trim();
@@ -1919,6 +1929,42 @@ function showError(message, report) {
         detailEl.textContent = 'An unexpected error occurred.';
     }
     navigateTo('error');
+}
+
+function retryWithManualTranscript() {
+    const textarea = document.getElementById('manual-transcript-error');
+    const transcript = textarea.value.trim();
+    if (!transcript || transcript.length < 50) {
+        showToast('Please paste at least 50 characters of transcript text.');
+        textarea.focus();
+        textarea.style.outline = '2px solid var(--danger)';
+        setTimeout(() => textarea.style.outline = '', 2000);
+        return;
+    }
+
+    const url = _lastErrorUrl;
+    if (!url) { showToast('No video URL found. Please go back and try again.'); return; }
+
+    navigateTo('processing');
+    resetProgress();
+    updateProgress('Starting analysis with manual transcript...');
+
+    const body = {
+        url,
+        session_id: getSessionId(),
+        language: document.getElementById('language-select').value || 'en',
+        manualTranscript: transcript,
+        with_video: false
+    };
+
+    fetch(`${API_BASE}/api/fact-check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    })
+    .then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); })
+    .then(data => pollReport(data.report_id))
+    .catch(err => { console.error(err); showError(err.message); });
 }
 
 // ─── Toast ───

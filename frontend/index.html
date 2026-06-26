@@ -565,11 +565,58 @@
         <!-- ════ ERROR PAGE ════ -->
         <section id="page-error" class="page">
             <div class="container">
-                <div class="error-state">
+                <div class="error-state" id="error-state-generic">
                     <div class="error-icon">⚠️</div>
                     <h2 class="error-title" id="error-title">Something went wrong</h2>
                     <p class="error-message" id="error-message">An error occurred while processing your request.</p>
                     <button class="btn btn-primary" onclick="navigateTo('home')">Try again</button>
+                </div>
+
+                <!-- Transcript unavailable — show manual paste with step-by-step guide -->
+                <div class="error-transcript" id="error-transcript-section" style="display:none;">
+                    <div class="error-icon">📝</div>
+                    <h2 class="error-title">Transcript not available</h2>
+                    <p class="error-message">
+                        YouTube blocked automated caption access for this video.
+                        Don't worry — you can paste the transcript manually in 3 easy steps.
+                    </p>
+
+                    <div class="transcript-steps">
+                        <div class="ts-step">
+                            <div class="ts-step-number">1</div>
+                            <div class="ts-step-content">
+                                <strong>Open the video on YouTube</strong>
+                                <span>Go to <span class="ts-url-display" id="ts-video-url">youtube.com</span> and open the video.</span>
+                            </div>
+                        </div>
+                        <div class="ts-step">
+                            <div class="ts-step-number">2</div>
+                            <div class="ts-step-content">
+                                <strong>Click "More actions" (⋯) → "Show transcript"</strong>
+                                <span>Below the video, click the three dots ⋮ or ⋯, then select <strong>"Show transcript"</strong>.</span>
+                            </div>
+                        </div>
+                        <div class="ts-step">
+                            <div class="ts-step-number">3</div>
+                            <div class="ts-step-content">
+                                <strong>Copy the transcript text</strong>
+                                <span>Select all text in the transcript panel, copy it (Ctrl+C / Cmd+C), then paste below.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="manual-transcript-error-box">
+                        <label class="manual-label">Paste the video transcript here:</label>
+                        <textarea id="manual-transcript-error" class="manual-textarea" placeholder="1. Open the YouTube video&#10;2. Click ⋮ → 'Show transcript'&#10;3. Copy all text and paste it here..." rows="6"></textarea>
+                        <div class="manual-actions">
+                            <button class="btn btn-primary" onclick="retryWithManualTranscript()">
+                                Analyze with Transcript
+                            </button>
+                            <button class="btn btn-secondary" onclick="navigateTo('home')">
+                                Go Back
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
