@@ -517,7 +517,7 @@
                 <!-- Bottom Actions -->
                 <div class="results-actions">
                     <button class="btn btn-secondary" onclick="navigateTo('home')">Check another video</button>
-                    <button class="btn btn-outline" onclick="exportTxt()">📄 Download Report</button>
+                    <button class="btn btn-outline" onclick="exportPdf()">📄 Download PDF</button>
                 </div>
             </div>
         </section>
@@ -667,5 +667,6 @@
     <script src="/app.js"></script>
     <!-- YouTube IFrame API (loaded after app.js) -->
     <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </body>
 </html>
