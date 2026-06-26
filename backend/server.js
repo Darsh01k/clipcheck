@@ -914,6 +914,25 @@ async function processTextReport(reportId, text, language = 'en') {
 
 // ─── Routes ───
 
+app.get("/", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    service: "ClipCheck API",
+    message: "Backend is running",
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "healthy",
+    service: "ClipCheck API",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development"
+  });
+});
+
 app.get('/api/health', (req, res) => {
     const providers = AI_PROVIDERS.map(p => ({
         name: p.name,
