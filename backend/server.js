@@ -23,6 +23,7 @@ const PORT = process.env.PORT || 8000;
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
+const SERPER_API_KEY = process.env.SERPER_API_KEY;
 
 const AI_PROVIDERS = [
     {
@@ -314,6 +315,33 @@ async function getYouTubeInfo(videoUrl) {
 
 // ─── Web Search (Deep) ───
 async function searchWeb(query, maxResults = 8) {
+    // Try Serper.dev API first if key is configured
+    if (SERPER_API_KEY && SERPER_API_KEY !== 'your-serper-api-key-here') {
+        try {
+            const response = await fetch('https://google.serper.dev/search', {
+                method: 'POST',
+                headers: {
+                    'X-API-KEY': SERPER_API_KEY,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ q: query, num: maxResults }),
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.organic && data.organic.length > 0) {
+                    return data.organic.map(r => ({
+                        title: r.title,
+                        url: r.link,
+                        snippet: r.snippet,
+                    }));
+                }
+            }
+        } catch (e) {
+            console.error('Serper.dev search error:', e.message);
+        }
+    }
+
+    // Fallback: scrape DuckDuckGo HTML
     try {
         const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
         const response = await fetch(searchUrl, {

@@ -18,3 +18,5 @@ services:
         value: '*'
       - key: YOUTUBE_API_KEY
         sync: false
+      - key: SERPER_API_KEY
+        sync: false
