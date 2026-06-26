@@ -586,28 +586,35 @@
                             <div class="ts-step-number">1</div>
                             <div class="ts-step-content">
                                 <strong>Open the video on YouTube</strong>
-                                <span>Go to <span class="ts-url-display" id="ts-video-url">youtube.com</span> and open the video.</span>
+                                <span>Go to <span class="ts-url-display" id="ts-video-url">youtube.com</span> and click play on the video.</span>
                             </div>
                         </div>
                         <div class="ts-step">
                             <div class="ts-step-number">2</div>
                             <div class="ts-step-content">
-                                <strong>Click "More actions" (⋯) → "Show transcript"</strong>
-                                <span>Below the video, click the three dots ⋮ or ⋯, then select <strong>"Show transcript"</strong>.</span>
+                                <strong>Find the "⋯" More button below the video</strong>
+                                <span>Look below the video title for a row of buttons: Like 👍, Dislike 👎, Share ↗, <strong>"⋯" More</strong>. Click <strong>"⋯" More</strong>.</span>
                             </div>
                         </div>
                         <div class="ts-step">
                             <div class="ts-step-number">3</div>
                             <div class="ts-step-content">
-                                <strong>Copy the transcript text</strong>
-                                <span>Select all text in the transcript panel, copy it (Ctrl+C / Cmd+C), then paste below.</span>
+                                <strong>Click "Show transcript" from the menu</strong>
+                                <span>A dropdown menu opens. Click <strong>"Show transcript"</strong>. A transcript panel appears on the right side of the video.</span>
+                            </div>
+                        </div>
+                        <div class="ts-step">
+                            <div class="ts-step-number">4</div>
+                            <div class="ts-step-content">
+                                <strong>Select and copy the text</strong>
+                                <span>Click inside the transcript panel, press <strong>Ctrl+A</strong> (or <strong>Cmd+A</strong> on Mac) to select all, then press <strong>Ctrl+C</strong> (or <strong>Cmd+C</strong>) to copy. Paste it in the box below.</span>
                             </div>
                         </div>
                     </div>
 
                     <div class="manual-transcript-error-box">
-                        <label class="manual-label">Paste the video transcript here:</label>
-                        <textarea id="manual-transcript-error" class="manual-textarea" placeholder="1. Open the YouTube video&#10;2. Click ⋮ → 'Show transcript'&#10;3. Copy all text and paste it here..." rows="6"></textarea>
+                        <label class="manual-label">Paste the copied transcript here:</label>
+                        <textarea id="manual-transcript-error" class="manual-textarea" placeholder="Press Ctrl+V (or Cmd+V on Mac) to paste the transcript you just copied..." rows="6"></textarea>
                         <div class="manual-actions">
                             <button class="btn btn-primary" onclick="retryWithManualTranscript()">
                                 Analyze with Transcript
