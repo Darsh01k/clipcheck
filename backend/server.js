@@ -8,8 +8,6 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
 const ytdl = require('@distube/ytdl-core');
@@ -77,19 +75,10 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50mb' }));
 
-// ─── JSON Database ───
-const DB_PATH = path.join(__dirname, 'clipcheck.json');
-
-function loadDb() {
-    try {
-        if (fs.existsSync(DB_PATH)) {
-            return JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-        }
-    } catch (e) { console.error('DB load error:', e.message); }
-    return { reports: {} };
-}
-function saveDb(db) { fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2)); }
-if (!fs.existsSync(DB_PATH)) saveDb(loadDb());
+// ─── In-Memory Database ───
+const db = { reports: {} };
+function loadDb() { return db; }
+function saveDb() { /* in-memory only */ }
 
 // ─── AI API Call with Multi-Provider Fallback + Timeout ───
 async function callOpenRouter(messages, options = {}) {
