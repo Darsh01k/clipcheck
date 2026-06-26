@@ -237,7 +237,18 @@ async function pollReport(reportId) {
         attempts++;
         try {
             const response = await fetch(`${API_BASE}/api/report/${reportId}`);
-            if (!response.ok) { await new Promise(r => setTimeout(r, 2000)); continue; }
+            if (!response.ok) {
+                if (response.status === 404) {
+                    showError('Report not found. It may have expired or the link is invalid. Try submitting a new fact-check.');
+                    return;
+                }
+                if (response.status >= 500) {
+                    showError('The server encountered an error. Please try again later.');
+                    return;
+                }
+                await new Promise(r => setTimeout(r, 2000));
+                continue;
+            }
             const report = await response.json();
 
             if (report.status === 'completed') {
@@ -1890,7 +1901,7 @@ async function loadReport(reportId) {
             await pollReport(reportId);
         }
     } catch (err) {
-        showError('Could not load report');
+        showError('Report not found. It may have expired or the link is invalid.');
     }
 }
 
