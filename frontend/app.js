@@ -2039,6 +2039,8 @@ function initParticleBg() {
     let particles = [];
     let animFrame = null;
 
+    const isMobile = () => window.innerWidth < 768;
+
     function resize() {
         canvas.width = window.innerWidth;
         canvas.height = document.body.scrollHeight;
@@ -2046,14 +2048,15 @@ function initParticleBg() {
     resize();
     window.addEventListener('resize', resize);
 
-    const COUNT = 100;
+    const COUNT = isMobile() ? 30 : 100;
+    const CONNECTION_DIST = isMobile() ? 80 : 150;
     particles = Array.from({ length: COUNT }, () => ({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
         vx: (Math.random() - 0.5) * 0.4,
         vy: (Math.random() - 0.5) * 0.4,
-        r: 1.5 + Math.random() * 2,
-        alpha: 0.08 + Math.random() * 0.15,
+        r: isMobile() ? 1 + Math.random() * 1.5 : 1.5 + Math.random() * 2,
+        alpha: isMobile() ? 0.05 + Math.random() * 0.1 : 0.08 + Math.random() * 0.15,
     }));
 
     function draw() {
@@ -2078,11 +2081,11 @@ function initParticleBg() {
                 const dx = particles[i].x - particles[j].x;
                 const dy = particles[i].y - particles[j].y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 150) {
+                if (dist < CONNECTION_DIST) {
                     ctx.beginPath();
                     ctx.moveTo(particles[i].x, particles[i].y);
                     ctx.lineTo(particles[j].x, particles[j].y);
-                    ctx.strokeStyle = `rgba(34, 214, 94, ${0.04 * (1 - dist / 150)})`;
+                    ctx.strokeStyle = `rgba(34, 214, 94, ${0.04 * (1 - dist / CONNECTION_DIST)})`;
                     ctx.lineWidth = 0.5;
                     ctx.stroke();
                 }
