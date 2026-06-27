@@ -15,7 +15,7 @@ services:
       - key: AI_MODEL
         value: meta-llama/llama-3.3-70b-instruct:free
       - key: ALLOWED_ORIGINS
-        value: https://clipcheck.app
+        value: https://clipcheck.app,https://clipcheck-ai.vercel.app
       - key: YOUTUBE_API_KEY
         sync: false
       - key: SERPER_API_KEY

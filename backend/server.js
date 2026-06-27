@@ -20,6 +20,7 @@ const { fetchTranscriptAll } = require('./transcript_fetcher');
 const { getTranscriptWithRetries, validateYouTubeUrl } = require('./services/transcriptService');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 8000;
 
 // ─── AI Provider Configuration (with fallback) ───
@@ -163,7 +164,7 @@ const AI_PROVIDERS = [
 ].filter(p => p.apiKey);
 
 // ─── Middleware ───
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'https://clipcheck.app')
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'https://clipcheck.app,https://clipcheck-ai.vercel.app')
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);
