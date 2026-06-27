@@ -92,11 +92,11 @@ function setMode(mode) {
     document.querySelectorAll('.toggle-btn').forEach(b => b.classList.toggle('active', b.id === `mode-${mode}`));
 }
 
-// ─── Session ───
-function getSessionId() {
-    let sid = localStorage.getItem('clipcheck_session');
-    if (!sid) { sid = 'sess_' + crypto.randomUUID(); localStorage.setItem('clipcheck_session', sid); }
-    return sid;
+// ─── User ID ───
+function getUserId() {
+    let uid = localStorage.getItem('clipcheck_user_id');
+    if (!uid) { uid = 'usr_' + crypto.randomUUID(); localStorage.setItem('clipcheck_user_id', uid); }
+    return uid;
 }
 
 // ─── Time Range Toggle ───
@@ -169,7 +169,7 @@ async function submitFactCheck() {
     try {
         const lang = document.getElementById('language-select').value;
         const manualTranscript = document.getElementById('manual-transcript').value.trim();
-        const body = { url, session_id: getSessionId(), language: lang, with_video: _currentMode === 'video' };
+        const body = { url, user_id: getUserId(), language: lang, with_video: _currentMode === 'video' };
         if (manualTranscript) body.manualTranscript = manualTranscript;
         const st = parseFloat(document.getElementById('start-time').value);
         const et = parseFloat(document.getElementById('end-time').value);
@@ -206,7 +206,7 @@ async function submitTextFactCheck() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 text,
-                session_id: getSessionId(),
+                user_id: getUserId(),
                 language: document.getElementById('language-select').value || 'en'
             })
         });
@@ -1706,7 +1706,7 @@ async function loadHistory() {
     updateCompareBar();
 
     try {
-        const response = await fetch(`${API_BASE}/api/reports?session_id=${encodeURIComponent(getSessionId())}`);
+        const response = await fetch(`${API_BASE}/api/reports?user_id=${encodeURIComponent(getUserId())}`);
         if (!response.ok) { list.innerHTML = '<div class="history-empty"><p>Could not load history</p></div>'; return; }
         const reports = await response.json();
 
@@ -1910,7 +1910,7 @@ function retryWithManualTranscript() {
 
     const body = {
         url,
-        session_id: getSessionId(),
+        user_id: getUserId(),
         language: document.getElementById('language-select').value || 'en',
         manualTranscript: transcript,
         with_video: false
@@ -1960,7 +1960,7 @@ async function loadRecentActivity() {
     const list = document.getElementById('recent-list');
     if (!section || !list) return;
     try {
-        const response = await fetch(`${API_BASE}/api/reports?session_id=${encodeURIComponent(getSessionId())}`);
+        const response = await fetch(`${API_BASE}/api/reports?user_id=${encodeURIComponent(getUserId())}`);
         if (!response.ok) { section.style.display = 'none'; return; }
         const reports = await response.json();
         if (!reports || reports.length === 0) { section.style.display = 'none'; return; }

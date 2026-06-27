@@ -101,10 +101,11 @@ function requireAuth(req, res, next) {
 // ─── Session ID Validation ───
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EXT_SESSION_REGEX = /^ext_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const USR_SESSION_REGEX = /^usr_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SESS_SESSION_REGEX = /^sess_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-function isValidSessionId(sid) {
-    if (!sid) return false;
-    return UUID_REGEX.test(sid) || EXT_SESSION_REGEX.test(sid) || SESS_SESSION_REGEX.test(sid);
+function isValidUserId(id) {
+    if (!id) return false;
+    return UUID_REGEX.test(id) || EXT_SESSION_REGEX.test(id) || USR_SESSION_REGEX.test(id) || SESS_SESSION_REGEX.test(id);
 }
 
 // ─── Rate Limiters ───
@@ -962,10 +963,10 @@ async function getTranscript(videoUrl, startTime = 0, endTime = null, lang = 'en
 // ─── Custom Text Fact-Check ───
 app.post('/api/fact-check-text', requireAuth, async (req, res) => {
     try {
-        const { text, session_id, language } = req.body;
+        const { text, user_id, language } = req.body;
         if (!text || !text.trim()) return res.status(400).json({ detail: 'Text is required' });
         if (text.trim().length < 3) return res.status(400).json({ detail: 'Text must be at least 3 characters' });
-        if (session_id && !isValidSessionId(session_id)) return res.status(400).json({ detail: 'Invalid session_id format' });
+        if (user_id && !isValidUserId(user_id)) return res.status(400).json({ detail: 'Invalid user_id format' });
 
         const reportId = uuidv4();
         const db = loadDb();
@@ -977,7 +978,7 @@ app.post('/api/fact-check-text', requireAuth, async (req, res) => {
             platform: 'text',
             title: `Fact-Check: "${textLabel}${text.trim().length > 100 ? '...' : ''}"`,
             status: 'processing',
-            session_id: session_id || 'anonymous',
+            user_id: user_id || 'anonymous',
             language: language || 'en',
             with_video: false,
             thumbnail_url: null,
@@ -1185,7 +1186,7 @@ app.get('/api/health', (req, res) => {
 // ─── Browser Extension Endpoint ───
 app.post('/api/extension/analyze', requireAuth, async (req, res) => {
     try {
-        const { url, transcript, title, session_id, language } = req.body;
+        const { url, transcript, title, user_id, language } = req.body;
         if (!url || !url.trim()) return res.status(400).json({ detail: 'URL is required' });
         if (!transcript || !transcript.trim()) return res.status(400).json({ detail: 'Transcript is required' });
         if (!isYouTubeUrl(url.trim())) {
@@ -1202,7 +1203,7 @@ app.post('/api/extension/analyze', requireAuth, async (req, res) => {
             platform: 'youtube',
             title: title || `YouTube Video (${videoId || 'unknown'})`,
             status: 'processing',
-            session_id: session_id || 'extension',
+            user_id: user_id || 'extension',
             language: language || 'en',
             with_video: false,
             transcript: transcript.trim(),
@@ -1243,14 +1244,14 @@ app.post('/api/extension/analyze', requireAuth, async (req, res) => {
 
 app.post('/api/fact-check', requireAuth, async (req, res) => {
     try {
-        const { url, session_id, start_time, end_time, language, with_video, manualTranscript, source, analyzeWithoutTranscript } = req.body;
+        const { url, user_id, start_time, end_time, language, with_video, manualTranscript, source, analyzeWithoutTranscript } = req.body;
         if (!url || !url.trim()) return res.status(400).json({ detail: 'URL is required' });
         const trimmedUrl = url.trim();
         if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
             return res.status(400).json({ detail: 'Invalid URL format' });
         }
         if (!isUrlAllowed(trimmedUrl)) return res.status(400).json({ detail: 'URL not allowed' });
-        if (session_id && !isValidSessionId(session_id)) return res.status(400).json({ detail: 'Invalid session_id format' });
+        if (user_id && !isValidUserId(user_id)) return res.status(400).json({ detail: 'Invalid user_id format' });
         const manualTr = manualTranscript ? manualTranscript.trim() : '';
         if (manualTr && manualTr.length < 50) {
             return res.status(400).json({ detail: 'Manual transcript must be at least 50 characters.' });
@@ -1269,7 +1270,7 @@ app.post('/api/fact-check', requireAuth, async (req, res) => {
             platform,
             title: null,
             status: 'processing',
-            session_id: session_id || 'anonymous',
+            user_id: user_id || 'anonymous',
             language: language || 'en',
             with_video: with_video !== false,
             manual_transcript: manualTr || null,
@@ -1318,11 +1319,11 @@ app.get('/api/report/:id', (req, res) => {
 });
 
 app.get('/api/reports', (req, res) => {
-    const sessionId = req.query.session_id;
-    if (!sessionId) return res.status(400).json({ detail: 'session_id is required' });
+    const userId = req.query.user_id || req.query.session_id;
+    if (!userId) return res.status(400).json({ detail: 'user_id is required' });
     const db = loadDb();
     const reports = Object.values(db.reports)
-        .filter(r => r.session_id === sessionId)
+        .filter(r => r.user_id === userId || r.session_id === userId)
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         .slice(0, 50)
         .map(r => ({

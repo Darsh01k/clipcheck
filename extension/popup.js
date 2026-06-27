@@ -109,7 +109,7 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
         url: videoInfo.url,
         transcript: transcriptText,
         title: videoInfo.title,
-        session_id: sessionId,
+        user_id: sessionId,
         language: 'en'
       })
     });
