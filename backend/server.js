@@ -101,9 +101,10 @@ function requireAuth(req, res, next) {
 // ─── Session ID Validation ───
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EXT_SESSION_REGEX = /^ext_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SESS_SESSION_REGEX = /^sess_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isValidSessionId(sid) {
     if (!sid) return false;
-    return UUID_REGEX.test(sid) || EXT_SESSION_REGEX.test(sid);
+    return UUID_REGEX.test(sid) || EXT_SESSION_REGEX.test(sid) || SESS_SESSION_REGEX.test(sid);
 }
 
 // ─── Rate Limiters ───
