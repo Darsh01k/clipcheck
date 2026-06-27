@@ -203,35 +203,23 @@ function loadDb() {
 function saveDb(data) {
     if (data) Object.assign(db, data);
     try {
-        const toSave = { reports: {} };
-        const now = Date.now();
-        const MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
-        for (const [id, report] of Object.entries(db.reports)) {
-            const created = new Date(report.created_at).getTime();
-            if (now - created < MAX_AGE) {
-                toSave.reports[id] = report;
-            }
-        }
-        // Clean expired reports from memory too
-        db.reports = toSave.reports;
-        fs.writeFileSync(DB_FILE, JSON.stringify(toSave, null, 2), 'utf8');
+        fs.writeFileSync(DB_FILE, JSON.stringify({ reports: db.reports }, null, 2), 'utf8');
     } catch (e) {
         console.error('Failed to persist database:', e.message);
     }
 }
 
-// Try to restore from disk on startup
-try {
-    if (fs.existsSync(DB_FILE)) {
-        const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-        if (data && data.reports) {
-            Object.assign(db.reports, data.reports);
-            console.log(`Restored ${Object.keys(data.reports).length} reports from disk`);
+// Periodically clean expired reports (every hour)
+setInterval(() => {
+    const now = Date.now();
+    const MAX_AGE = 24 * 60 * 60 * 1000;
+    for (const [id, report] of Object.entries(db.reports)) {
+        const created = new Date(report.created_at).getTime();
+        if (isNaN(created) || now - created >= MAX_AGE) {
+            delete db.reports[id];
         }
     }
-} catch (e) {
-    console.error('Failed to restore database:', e.message);
-}
+}, 60 * 60 * 1000);
 
 // ─── AI API Call with Multi-Provider Fallback + Timeout ───
 async function callOpenRouter(messages, options = {}) {
