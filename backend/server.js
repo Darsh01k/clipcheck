@@ -6,8 +6,13 @@
    ────────────────────────────────────────────── */
 
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const net = require('net');
 const { v4: uuidv4 } = require('uuid');
 
 const ytdl = require('@distube/ytdl-core');
@@ -22,6 +27,100 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY;
 const SERPER_API_KEY = process.env.SERPER_API_KEY;
+const API_AUTH_KEY = process.env.API_AUTH_KEY;
+
+// ─── URL Validation (SSRF Prevention) ───
+const ALLOWED_HOSTS = [
+    'youtube.com', 'www.youtube.com', 'youtu.be',
+    'm.youtube.com', 'music.youtube.com',
+    'twitter.com', 'www.twitter.com', 'x.com',
+    'tiktok.com', 'www.tiktok.com', 'vm.tiktok.com',
+    'facebook.com', 'www.facebook.com', 'fb.com', 'fb.watch',
+    'vimeo.com', 'www.vimeo.com',
+    'instagram.com', 'www.instagram.com', 'instagr.am',
+    'publish.twitter.com',
+    'googleapis.com', 'www.googleapis.com',
+    'google.serper.dev',
+    'html.duckduckgo.com',
+];
+
+const PRIVATE_RANGES = [
+    /^127\./,
+    /^10\./,
+    /^172\.(1[6-9]|2\d|3[01])\./,
+    /^192\.168\./,
+    /^0\./,
+    /^169\.254\./,
+    /^::1$/,
+    /^fc00:/,
+    /^fe80:/,
+];
+
+function isUrlAllowed(urlString) {
+    try {
+        const url = new URL(urlString);
+        const hostname = url.hostname.toLowerCase();
+
+        // Block private/reserved IPs
+        if (PRIVATE_RANGES.some(r => r.test(hostname))) return false;
+
+        // Block direct IP access (unless explicitly allowed)
+        if (net.isIP(hostname)) return false;
+
+        // Check against allowed hosts
+        return ALLOWED_HOSTS.some(allowed =>
+            hostname === allowed || hostname.endsWith('.' + allowed)
+        );
+    } catch {
+        return false;
+    }
+}
+
+function isYouTubeUrl(urlString) {
+    try {
+        const url = new URL(urlString);
+        const hostname = url.hostname.toLowerCase();
+        return ['youtube.com', 'www.youtube.com', 'youtu.be', 'm.youtube.com', 'music.youtube.com']
+            .some(h => hostname === h || hostname.endsWith('.' + h));
+    } catch {
+        return false;
+    }
+}
+
+// ─── API Auth Middleware ───
+function requireAuth(req, res, next) {
+    if (!API_AUTH_KEY) return next(); // No key set = no auth (dev mode)
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || authHeader !== `Bearer ${API_AUTH_KEY}`) {
+        return res.status(401).json({ detail: 'Unauthorized' });
+    }
+    next();
+}
+
+// ─── Session ID Validation ───
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EXT_SESSION_REGEX = /^ext_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isValidSessionId(sid) {
+    if (!sid) return false;
+    return UUID_REGEX.test(sid) || EXT_SESSION_REGEX.test(sid);
+}
+
+// ─── Rate Limiters ───
+const postLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { detail: 'Too many requests. Please slow down.' },
+});
+
+const getLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { detail: 'Too many requests. Please slow down.' },
+});
 
 const AI_PROVIDERS = [
     {
@@ -64,21 +163,75 @@ const AI_PROVIDERS = [
 ].filter(p => p.apiKey);
 
 // ─── Middleware ───
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '*')
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'https://clipcheck.app')
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);
 app.use(cors({
-    origin: allowedOrigins.includes('*') ? '*' : allowedOrigins,
+    origin(origin, cb) {
+        if (!origin) return cb(null, true); // Allow non-browser requests
+        if (allowedOrigins.includes('*')) return cb(null, true);
+        if (origin.startsWith('chrome-extension://')) return cb(null, true);
+        if (allowedOrigins.some(o => origin.startsWith(o) || origin === o)) return cb(null, true);
+        cb(null, false);
+    },
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-app.use(express.json({ limit: '50mb' }));
+// Prevent Chrome from doing MIME-type sniffing
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+}));
+app.use(express.json({ limit: '5mb' }));
 
-// ─── In-Memory Database ───
+// Apply rate limiters
+app.use('/api/', (req, res, next) => {
+    if (req.method === 'POST') return postLimiter(req, res, next);
+    if (req.method === 'GET') return getLimiter(req, res, next);
+    next();
+});
+
+// ─── Database (JSON file persistence) ───
+const DB_FILE = path.join(__dirname, 'clipcheck.json');
 const db = { reports: {} };
-function loadDb() { return db; }
-function saveDb() { /* in-memory only */ }
+
+function loadDb() {
+    return db;
+}
+
+function saveDb(data) {
+    if (data) Object.assign(db, data);
+    try {
+        const toSave = { reports: {} };
+        const now = Date.now();
+        const MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours
+        for (const [id, report] of Object.entries(db.reports)) {
+            const created = new Date(report.created_at).getTime();
+            if (now - created < MAX_AGE) {
+                toSave.reports[id] = report;
+            }
+        }
+        // Clean expired reports from memory too
+        db.reports = toSave.reports;
+        fs.writeFileSync(DB_FILE, JSON.stringify(toSave, null, 2), 'utf8');
+    } catch (e) {
+        console.error('Failed to persist database:', e.message);
+    }
+}
+
+// Try to restore from disk on startup
+try {
+    if (fs.existsSync(DB_FILE)) {
+        const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+        if (data && data.reports) {
+            Object.assign(db.reports, data.reports);
+            console.log(`Restored ${Object.keys(data.reports).length} reports from disk`);
+        }
+    }
+} catch (e) {
+    console.error('Failed to restore database:', e.message);
+}
 
 // ─── AI API Call with Multi-Provider Fallback + Timeout ───
 async function callOpenRouter(messages, options = {}) {
@@ -275,6 +428,9 @@ function withTimeout(promise, ms, label = 'operation') {
 
 // ─── Video Info Fetching (with timeout) ───
 async function getYouTubeInfo(videoUrl) {
+    if (!isYouTubeUrl(videoUrl)) {
+        return { title: 'YouTube Video', thumbnail_url: '', duration: 0, author: '' };
+    }
     try {
         const info = await withTimeout(
             ytdl.getInfo(videoUrl),
@@ -749,6 +905,9 @@ async function getTranscript(videoUrl, startTime = 0, endTime = null, lang = 'en
 
         if (platform === 'twitter') {
             console.log('  Fetching tweet content via oEmbed...');
+            if (!isUrlAllowed(videoUrl)) {
+                return { success: false, error: 'URL not allowed', platform };
+            }
             try {
                 const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(videoUrl)}`;
                 const oembedResp = await withTimeout(fetch(oembedUrl), 8000, 'Twitter oEmbed');
@@ -774,6 +933,9 @@ async function getTranscript(videoUrl, startTime = 0, endTime = null, lang = 'en
                 };
             } catch (e) {
                 console.error('Twitter oEmbed error:', e.message);
+                if (!isUrlAllowed(videoUrl)) {
+                    return { success: false, error: 'URL not allowed', platform };
+                }
                 try {
                     const pageResp = await withTimeout(fetch(videoUrl, {
                         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ClipCheck/1.0)' }
@@ -808,11 +970,12 @@ async function getTranscript(videoUrl, startTime = 0, endTime = null, lang = 'en
 }
 
 // ─── Custom Text Fact-Check ───
-app.post('/api/fact-check-text', async (req, res) => {
+app.post('/api/fact-check-text', requireAuth, async (req, res) => {
     try {
         const { text, session_id, language } = req.body;
         if (!text || !text.trim()) return res.status(400).json({ detail: 'Text is required' });
         if (text.trim().length < 3) return res.status(400).json({ detail: 'Text must be at least 3 characters' });
+        if (session_id && !isValidSessionId(session_id)) return res.status(400).json({ detail: 'Invalid session_id format' });
 
         const reportId = uuidv4();
         const db = loadDb();
@@ -1023,25 +1186,19 @@ app.get("/health", (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-    const providers = AI_PROVIDERS.map(p => ({
-        name: p.name,
-        configured: !!p.apiKey,
-        models: p.models,
-    }));
     res.json({
         status: 'ok',
-        providers,
         timestamp: new Date().toISOString()
     });
 });
 
 // ─── Browser Extension Endpoint ───
-app.post('/api/extension/analyze', async (req, res) => {
+app.post('/api/extension/analyze', requireAuth, async (req, res) => {
     try {
         const { url, transcript, title, session_id, language } = req.body;
         if (!url || !url.trim()) return res.status(400).json({ detail: 'URL is required' });
         if (!transcript || !transcript.trim()) return res.status(400).json({ detail: 'Transcript is required' });
-        if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+        if (!isYouTubeUrl(url.trim())) {
             return res.status(400).json({ detail: 'Only YouTube URLs are supported via extension' });
         }
 
@@ -1094,7 +1251,7 @@ app.post('/api/extension/analyze', async (req, res) => {
     }
 });
 
-app.post('/api/fact-check', async (req, res) => {
+app.post('/api/fact-check', requireAuth, async (req, res) => {
     try {
         const { url, session_id, start_time, end_time, language, with_video, manualTranscript, source, analyzeWithoutTranscript } = req.body;
         if (!url || !url.trim()) return res.status(400).json({ detail: 'URL is required' });
@@ -1102,6 +1259,8 @@ app.post('/api/fact-check', async (req, res) => {
         if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
             return res.status(400).json({ detail: 'Invalid URL format' });
         }
+        if (!isUrlAllowed(trimmedUrl)) return res.status(400).json({ detail: 'URL not allowed' });
+        if (session_id && !isValidSessionId(session_id)) return res.status(400).json({ detail: 'Invalid session_id format' });
         const manualTr = manualTranscript ? manualTranscript.trim() : '';
         if (manualTr && manualTr.length < 50) {
             return res.status(400).json({ detail: 'Manual transcript must be at least 50 characters.' });
@@ -1367,11 +1526,6 @@ async function processReport(reportId, videoUrl, startTime = 0, endTime = null, 
         }
     }
 }
-
-// ─── Health Check ───
-app.get('/api/health', (req, res) => {
-    res.json({ ok: true, status: 'running', providers: AI_PROVIDERS.map(p => p.name) });
-});
 
 // ─── Start ───
 app.listen(PORT, '0.0.0.0', () => {

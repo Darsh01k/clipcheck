@@ -87,8 +87,23 @@ async function extractUsingTranscriptApi(videoId, lang = 'en') {
   }
 }
 
+function isYouTubeUrl(urlString) {
+  try {
+    const url = new URL(urlString);
+    const hostname = url.hostname.toLowerCase();
+    return ['youtube.com', 'www.youtube.com', 'youtu.be', 'm.youtube.com', 'music.youtube.com']
+      .some(h => hostname === h || hostname.endsWith('.' + h));
+  } catch {
+    return false;
+  }
+}
+
 async function extractUsingYtDlp(videoUrl) {
   console.log('  [Method 2] Trying yt-dlp...');
+  if (!isYouTubeUrl(videoUrl)) {
+    console.log('  [Method 2] Failed: URL not allowed');
+    return { success: false, source: 'yt-dlp', error: 'URL not allowed' };
+  }
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ytdlp-'));
   const outputTemplate = path.join(tmpDir, '%(id)s.%(ext)s');
 
@@ -280,6 +295,10 @@ async function extractMetadata(videoUrl) {
   }
 
   try {
+    if (!isYouTubeUrl(videoUrl)) {
+      console.log('  [Method 3] Failed: URL not allowed');
+      return { success: false, source: 'metadata', error: 'URL not allowed' };
+    }
     console.log('  [Method 3] Using yt-dlp for metadata...');
     const result = await execFileWithTimeout('yt-dlp', [
       '--dump-json',

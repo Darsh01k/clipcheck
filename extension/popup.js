@@ -1,4 +1,5 @@
 const API_BASE = 'https://clipcheck.onrender.com';
+const API_AUTH_KEY = ''; // Set this to your API_AUTH_KEY from the server .env for authenticated access
 
 const defaultEl = document.getElementById('status-default');
 const loadingEl = document.getElementById('status-loading');
@@ -98,9 +99,12 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
 
     const sessionId = 'ext_' + crypto.randomUUID();
 
+    const headers = { 'Content-Type': 'application/json' };
+    if (API_AUTH_KEY) headers['Authorization'] = `Bearer ${API_AUTH_KEY}`;
+
     const apiResponse = await fetch(`${API_BASE}/api/extension/analyze`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         url: videoInfo.url,
         transcript: transcriptText,
