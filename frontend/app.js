@@ -849,6 +849,8 @@ function updateClaimCounter(report) {
         el.style.display = 'block';
         valEl.textContent = '...';
         statusEl.textContent = 'extracting claims...';
+    } else if (p.includes('no claims')) {
+        el.style.display = 'none';
     } else if (p.includes('found') && p.includes('claims')) {
         const m = p.match(/found\s*(\d+)\s*claims/i);
         if (m) {
